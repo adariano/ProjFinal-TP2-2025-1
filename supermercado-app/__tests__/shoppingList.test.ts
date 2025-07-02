@@ -8,10 +8,13 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  await prisma.$disconnect()
+})
+
+afterEach(async () => {
   await prisma.shoppingListItem.deleteMany()
   await prisma.shoppingList.deleteMany()
   await prisma.user.deleteMany()
-  await prisma.$disconnect()
 })
 
 describe('ShoppingList model TDD', () => {
