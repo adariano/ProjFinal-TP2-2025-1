@@ -41,6 +41,15 @@ model Market {
   rating    Float
 }
 
+model ShoppingList {
+  id         Int                  @id @default(autoincrement())
+  name       String
+  status     String               @default("active")
+  createdAt  DateTime             @default(now())
+  userId     Int
+  user       User                 @relation(fields: [userId], references: [id])
+}
+
 enum Role {
   USER
   ADMIN
