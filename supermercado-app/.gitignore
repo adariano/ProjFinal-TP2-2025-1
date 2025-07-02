@@ -25,3 +25,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+/lib/generated/prisma
+# Ignore banco local do Prisma com SQLite
+dev.db
+dev.db-journal
+prisma/test.db
+
