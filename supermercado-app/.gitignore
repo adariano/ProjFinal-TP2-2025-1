@@ -29,8 +29,23 @@ next-env.d.ts
 # Ignore banco local do Prisma com SQLite
 dev.db
 dev.db-journal
+<<<<<<< HEAD
 prisma/test.db
+=======
+<<<<<<< HEAD
+test.db
+<<<<<<< HEAD
+=======
+>>>>>>> 3349c33 (Modificado README com instruções para gerar banco de dados)
 
 #Ignore coverage results
 coverage/
+<<<<<<< HEAD
 
+=======
+>>>>>>> 83ca575 (Alteração no README para adicionar instruções de como gerar o db com o Prisma. Alteração no package.json para utilizar os comandos listados no README. .gitignore atualizado para incluir os arquivos gerados pelo jest --coverage. Adicionado .eslinttrc.json com configuração do linter.)
+=======
+prisma/test.db
+
+>>>>>>> dd0f18e (Modificado README com instruções para gerar banco de dados)
+>>>>>>> 3349c33 (Modificado README com instruções para gerar banco de dados)
