@@ -6,12 +6,26 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../lib/generated/prisma"
 }
 
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  name           String
+  email          String          @unique
+  cpf            String          @unique
+  role           Role            @default(USER)
+  createdAt      DateTime        @default(now())
+  shoppingLists  ShoppingList[]
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 
