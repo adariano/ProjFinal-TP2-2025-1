@@ -23,6 +23,18 @@ model User {
   shoppingLists  ShoppingList[]
 }
 
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String
+  category    String
+  brand       String
+  avgPrice    Float
+  lastUpdate  DateTime  @default(now())
+  items       ShoppingListItem[]
+}
+
+
+
 enum Role {
   USER
   ADMIN
