@@ -3,6 +3,9 @@
 - Deve-se primeiro instalar o gerenciador de pacotes [`npm`](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 - Depois, em seu terminal, dê `cd` até a raiz do projeto.
 - Então execute `npm install`, e logo `npm` instalará todas as depêndencias definidas.
+- Primeiramente é necessário gerar o banco de dados com prisma:
+ - Execute `npx prisma generate` e depois `npx prisma migrate dev`.
+ - E se quiser ver se tudo funcionou, rode `npx prisma studio` e também execute `npm test`.
 - Finalmente, execute `npm run dev`, para rodar o site em sua máquina.
 
 ## Comandos úteis

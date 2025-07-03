@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int             @id @default(autoincrement())
+  name           String
+  email          String          @unique
+  cpf            String          @unique
+  role           Role            @default(USER)
+  createdAt      DateTime        @default(now())
+  shoppingLists  ShoppingList[]
+}
+
+model Product {
+  id          Int       @id @default(autoincrement())
+  name        String
+  category    String
+  brand       String
+  avgPrice    Float
+  lastUpdate  DateTime  @default(now())
+  items       ShoppingListItem[]
+}
+
+model Market {
+  id        Int     @id @default(autoincrement())
+  name      String
+  address   String
+  distance  Float
+  rating    Float
+}
+
+model ShoppingList {
+  id         Int                  @id @default(autoincrement())
+  name       String
+  status     String               @default("active")
+  createdAt  DateTime             @default(now())
+  userId     Int
+  user       User                 @relation(fields: [userId], references: [id])
+  items      ShoppingListItem[]
+}
+
+model ShoppingListItem {
+  id            Int           @id @default(autoincrement())
+  quantity      Int
+  collected     Boolean       @default(false)
+  productId     Int
+  shoppingListId Int
+
+  product       Product       @relation(fields: [productId], references: [id])
+  shoppingList  ShoppingList @relation(fields: [shoppingListId], references: [id])
+}
+
+enum Role {
+  USER
+  ADMIN
+}
