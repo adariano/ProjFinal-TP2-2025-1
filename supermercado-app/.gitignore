@@ -30,9 +30,7 @@ next-env.d.ts
 dev.db
 dev.db-journal
 test.db
-<<<<<<< HEAD
-=======
 
 # generated coverage reports
 coverage/
->>>>>>> 83ca575 (Alteração no README para adicionar instruções de como gerar o db com o Prisma. Alteração no package.json para utilizar os comandos listados no README. .gitignore atualizado para incluir os arquivos gerados pelo jest --coverage. Adicionado .eslinttrc.json com configuração do linter.)
+prisma/test.db
