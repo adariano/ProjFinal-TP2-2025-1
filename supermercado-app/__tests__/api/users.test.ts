@@ -87,9 +87,31 @@ describe('User API', () => {
     expect(deleteRes.statusCode).toBe(200);
     expect(deleteRes.body).toHaveProperty('message');
 
-    // Tenta buscar o usuário deletado (deve retornar 404 ou array sem o usuário)
     const getRes = await request('http://localhost:3000')
       .get(`/api/user/${userId}`);
     expect(getRes.statusCode === 404 || getRes.body === null || getRes.body.error).toBeTruthy();
+  });
+
+  it('should return a user by id', async () => {
+    // Cria um usuário para buscar
+    const createRes = await request('http://localhost:3000')
+      .post('/api/user')
+      .send({
+        name: 'Show User',
+        email: 'showuser@example.com',
+        cpf: '55566677788',
+      });
+    expect(createRes.statusCode).toBe(201);
+    const userId = createRes.body.id;
+
+    // Busca o usuário pelo id
+    const getRes = await request('http://localhost:3000')
+      .get(`/api/user/${userId}`);
+
+    expect(getRes.statusCode).toBe(200);
+    expect(getRes.body).toHaveProperty('id', userId);
+    expect(getRes.body).toHaveProperty('name', 'Show User');
+    expect(getRes.body).toHaveProperty('email', 'showuser@example.com');
+    expect(getRes.body).toHaveProperty('cpf', '55566677788');
   });
 });
