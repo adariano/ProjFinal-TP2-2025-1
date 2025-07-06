@@ -1,7 +1,54 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 
-// PUT - Atualizar usuário
+// GET - Buscar usuário por ID
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const userId = parseInt(params.id);
+    
+    if (isNaN(userId)) {
+      return NextResponse.json(
+        { error: 'ID inválido' },
+        { status: 400 }
+      );
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        shoppingLists: {
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: 'Usuário não encontrado' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(user);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Erro ao buscar usuário' },
+      { status: 500 }
+    );
+  }
+}
+
+
+// PATCH - Atualizar usuário
 export async function PATCH(
     req: Request,
     { params }: { params: { id: string } }
@@ -56,3 +103,5 @@ export async function PATCH(
         );
     }
 }
+
+
