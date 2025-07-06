@@ -41,4 +41,30 @@ describe('User API', () => {
       expect(res.body[0]).toHaveProperty('cpf');
     }
   });
+
+  it('should update a user successfully', async () => {
+    // Cria um usuário para editar
+    const createRes = await request('http://localhost:3000')
+      .post('/api/user')
+      .send({
+        name: 'Maria Teste',
+        email: 'mariateste@example.com',
+        cpf: '99988877766',
+      });
+    expect(createRes.statusCode).toBe(201);
+    const userId = createRes.body.id;
+
+    // Atualiza o usuário
+    const patchRes = await request('http://localhost:3000')
+      .patch(`/api/user/${userId}`)
+      .send({
+        name: 'Maria Editada',
+        email: 'mariateste@example.com',
+        cpf: '99988877766',
+      });
+
+    expect(patchRes.statusCode).toBe(200);
+    expect(patchRes.body).toHaveProperty('id', userId);
+    expect(patchRes.body.name).toBe('Maria Editada');
+  });
 });
