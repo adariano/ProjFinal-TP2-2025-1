@@ -67,4 +67,29 @@ describe('User API', () => {
     expect(patchRes.body).toHaveProperty('id', userId);
     expect(patchRes.body.name).toBe('Maria Editada');
   });
+
+  it('should delete a user successfully', async () => {
+    // Cria um usuário para deletar
+    const createRes = await request('http://localhost:3000')
+      .post('/api/user')
+      .send({
+        name: 'Usuário Deletar',
+        email: 'deletar@example.com',
+        cpf: '11122233344',
+      });
+    expect(createRes.statusCode).toBe(201);
+    const userId = createRes.body.id;
+
+    // Deleta o usuário
+    const deleteRes = await request('http://localhost:3000')
+      .delete(`/api/user/${userId}`);
+
+    expect(deleteRes.statusCode).toBe(200);
+    expect(deleteRes.body).toHaveProperty('message');
+
+    // Tenta buscar o usuário deletado (deve retornar 404 ou array sem o usuário)
+    const getRes = await request('http://localhost:3000')
+      .get(`/api/user/${userId}`);
+    expect(getRes.statusCode === 404 || getRes.body === null || getRes.body.error).toBeTruthy();
+  });
 });
