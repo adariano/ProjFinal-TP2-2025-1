@@ -27,4 +27,18 @@ describe('User API', () => {
     expect(res.statusCode).toBe(400);
     expect(res.body).toHaveProperty('error');
   });
+
+  it('should return a list of users', async () => {
+    const res = await request('http://localhost:3000')
+      .get('/api/user');
+
+    expect(res.statusCode).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    if (res.body.length > 0) {
+      expect(res.body[0]).toHaveProperty('id');
+      expect(res.body[0]).toHaveProperty('name');
+      expect(res.body[0]).toHaveProperty('email');
+      expect(res.body[0]).toHaveProperty('cpf');
+    }
+  });
 });
