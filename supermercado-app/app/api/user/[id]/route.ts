@@ -105,3 +105,39 @@ export async function PATCH(
 }
 
 
+// DELETE - Deletar usuário
+export async function DELETE(
+  _: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const userId = parseInt(params.id);
+    
+    if (isNaN(userId)) {
+      return NextResponse.json(
+        { error: 'ID inválido' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    return NextResponse.json(
+      { message: 'Usuário deletado com sucesso' },
+      { status: 200 }
+    );
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Usuário não encontrado' },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json(
+      { error: 'Erro ao deletar usuário' },
+      { status: 500 }
+    );
+  }
+}
