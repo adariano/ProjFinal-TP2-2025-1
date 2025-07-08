@@ -80,3 +80,22 @@ it('should update a market successfully', async () => {
   expect(patchRes.body.name).toBe('Mercado Atualizado')
 },10000)
 
+it('should delete a market successfully', async () => {
+  // Primeiro, cria um mercado para deletar
+  const createRes = await request('http://localhost:3000')
+    .post('/api/market')
+    .send({
+      name: 'Mercado a Deletar',
+      address: 'Rua 9',
+      distance: 3.2,
+      rating: 3.5,
+    })
+
+  const marketId = createRes.body.id
+
+  // Agora, envia o DELETE
+  const deleteRes = await request('http://localhost:3000')
+    .delete(`/api/market/${marketId}`)
+
+  expect(deleteRes.statusCode).toBe(204) // 204 No Content
+})
