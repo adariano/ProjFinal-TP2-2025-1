@@ -52,5 +52,9 @@ describe('Market API', () => {
     expect(res.body).toHaveProperty('id', marketId)
     expect(res.body.name).toBe('Mercado Show')
   })
+  it('should return 404 for non-existing market', async () => {
+    const res = await request('http://localhost:3000').get('/api/market/99999999')
+    expect(res.statusCode).toBe(404)
+  })
 })
 
