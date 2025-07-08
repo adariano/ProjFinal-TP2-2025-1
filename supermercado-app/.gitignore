@@ -29,8 +29,8 @@ next-env.d.ts
 # Ignore banco local do Prisma com SQLite
 dev.db
 dev.db-journal
-test.db
-
-# generated coverage reports
-coverage/
 prisma/test.db
+
+#Ignore coverage results
+coverage/
+
