@@ -29,3 +29,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Erro ao criar mercado' }, { status: 500 })
   }
 }
+export async function GET() {
+  try {
+    const markets = await prisma.market.findMany()
+    return NextResponse.json(markets, { status: 200 })
+  } catch (error) {
+    console.error('Erro ao listar mercados:', error)
+    return NextResponse.json({ error: 'Erro ao listar mercados' }, { status: 500 })
+  }
+}
