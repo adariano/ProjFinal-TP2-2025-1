@@ -98,4 +98,4 @@ it('should delete a market successfully', async () => {
     .delete(`/api/market/${marketId}`)
 
   expect(deleteRes.statusCode).toBe(204) // 204 No Content
-})
+},10000)

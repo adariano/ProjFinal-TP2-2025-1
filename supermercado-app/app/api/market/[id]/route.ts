@@ -38,3 +38,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: 'Market not found or invalid data' }, { status: 404 })
   }
 }
+export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+  const id = Number(params.id)
+
+  try {
+    await prisma.market.delete({
+      where: { id },
+    })
+    return new Response(null, { status: 204 }) // No Content
+  } catch (error) {
+    return NextResponse.json({ error: 'Erro ao deletar o mercado' }, { status: 404 })
+  }
+}
