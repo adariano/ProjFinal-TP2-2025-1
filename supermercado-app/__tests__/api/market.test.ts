@@ -17,7 +17,6 @@ describe('Market API', () => {
 });
 
 describe('Market API', () => {
-  // Teste do POST que você já fez...
 
   it('should list all markets', async () => {
     const res = await request('http://localhost:3000').get('/api/market')
