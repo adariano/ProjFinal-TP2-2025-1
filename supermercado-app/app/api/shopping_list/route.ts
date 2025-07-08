@@ -40,3 +40,35 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+// GET - pega todas as listas de compras ou filtra por userId
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
+
+    const where = userId ? { userId: parseInt(userId) } : {};
+
+    const shoppingLists = await prisma.shoppingList.findMany({
+      where,
+      include: {
+        items: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(shoppingLists);
+  } catch (error) {
+    console.error("Falha ao buscar listas de compras:", error);
+    return NextResponse.json(
+      { error: "Falha ao buscar listas de compras" },
+      { status: 500 }
+    );
+  }
+}

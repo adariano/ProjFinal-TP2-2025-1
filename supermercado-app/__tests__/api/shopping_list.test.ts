@@ -1,3 +1,13 @@
+import { prisma } from "../../lib/prisma";
+
+beforeAll(async () => {
+  await prisma.$connect()
+})
+
+afterAll(async () => {
+  await prisma.$disconnect()
+})
+
 describe('POST /api/shopping_list', () => {
   it('should create a new shopping list and return 201', async () => {
     const response = await fetch('http://localhost:3000/api/shopping_list', {
