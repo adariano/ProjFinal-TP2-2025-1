@@ -1,4 +1,5 @@
 import request from 'supertest';
+import { prisma } from '@/lib/prisma';
 describe('Market API', () => {
   it('should create a market successfully', async () => {
     const res = await request('http://localhost:3000')
@@ -56,5 +57,26 @@ describe('Market API', () => {
     const res = await request('http://localhost:3000').get('/api/market/99999999')
     expect(res.statusCode).toBe(404)
   })
+})
+it('should update a market successfully', async () => {
+  // Cria primeiro um mercado para atualizar
+  const createRes = await request('http://localhost:3000')
+    .post('/api/market')
+    .send({
+      name: 'Mercado Original',
+      address: 'Rua 1',
+      distance: 1.5,
+      rating: 3.2,
+    })
+
+  const marketId = createRes.body.id
+
+  // Atualiza o nome do mercado
+  const patchRes = await request('http://localhost:3000')
+    .patch(`/api/market/${marketId}`)
+    .send({ name: 'Mercado Atualizado' })
+
+  expect(patchRes.statusCode).toBe(200)
+  expect(patchRes.body.name).toBe('Mercado Atualizado')
 })
 
