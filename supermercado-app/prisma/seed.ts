@@ -1,0 +1,289 @@
+import { PrismaClient, Prisma } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+// Dados de usuários
+const userData: Prisma.UserCreateInput[] = [
+  {
+    name: "João Silva",
+    email: "joao.silva@email.com",
+    cpf: "12345678901",
+    role: "USER",
+  },
+  {
+    name: "Maria Santos",
+    email: "maria.santos@email.com",
+    cpf: "23456789012",
+    role: "USER",
+  },
+  {
+    name: "Pedro Admin",
+    email: "admin@supermercado.com",
+    cpf: "34567890123",
+    role: "ADMIN",
+  },
+  {
+    name: "Ana Costa",
+    email: "ana.costa@email.com",
+    cpf: "45678901234",
+    role: "USER",
+  },
+];
+
+// Dados de produtos
+const productData: Prisma.ProductCreateInput[] = [
+  {
+    name: "Arroz Branco 5kg",
+    category: "Grãos e Cereais",
+    brand: "Tio João",
+    avgPrice: 22.50,
+  },
+  {
+    name: "Feijão Preto 1kg",
+    category: "Grãos e Cereais",
+    brand: "Camil",
+    avgPrice: 8.90,
+  },
+  {
+    name: "Açúcar Cristal 1kg",
+    category: "Doces e Açúcares",
+    brand: "União",
+    avgPrice: 4.50,
+  },
+  {
+    name: "Óleo de Soja 900ml",
+    category: "Óleos e Temperos",
+    brand: "Liza",
+    avgPrice: 6.80,
+  },
+  {
+    name: "Leite Integral 1L",
+    category: "Laticínios",
+    brand: "Parmalat",
+    avgPrice: 5.20,
+  },
+  {
+    name: "Pão de Forma Integral",
+    category: "Padaria",
+    brand: "Wickbold",
+    avgPrice: 7.90,
+  },
+  {
+    name: "Banana Prata kg",
+    category: "Frutas",
+    brand: "Natural",
+    avgPrice: 4.90,
+  },
+  {
+    name: "Tomate kg",
+    category: "Legumes e Verduras",
+    brand: "Natural",
+    avgPrice: 6.50,
+  },
+  {
+    name: "Detergente 500ml",
+    category: "Limpeza",
+    brand: "Ypê",
+    avgPrice: 2.80,
+  },
+  {
+    name: "Sabão em Pó 1kg",
+    category: "Limpeza",
+    brand: "OMO",
+    avgPrice: 12.90,
+  },
+  {
+    name: "Papel Higiênico 12 rolos",
+    category: "Higiene",
+    brand: "Neve",
+    avgPrice: 18.50,
+  },
+  {
+    name: "Shampoo 400ml",
+    category: "Higiene",
+    brand: "Seda",
+    avgPrice: 11.90,
+  },
+  {
+    name: "Macarrão Espaguete 500g",
+    category: "Massas",
+    brand: "Barilla",
+    avgPrice: 4.20,
+  },
+  {
+    name: "Molho de Tomate 340g",
+    category: "Molhos e Conservas",
+    brand: "Heinz",
+    avgPrice: 3.50,
+  },
+  {
+    name: "Refrigerante Cola 2L",
+    category: "Bebidas",
+    brand: "Coca-Cola",
+    avgPrice: 8.90,
+  },
+];
+
+// Dados de mercados
+const marketData: Prisma.MarketCreateInput[] = [
+  {
+    name: "Supermercado Extra",
+    address: "Rua das Flores, 123 - Centro",
+    distance: 0.8,
+    rating: 4.2,
+  },
+  {
+    name: "Carrefour Bairro",
+    address: "Av. Principal, 456 - Jardim América",
+    distance: 1.5,
+    rating: 4.0,
+  },
+  {
+    name: "Atacadão do Povo",
+    address: "Rua do Comércio, 789 - Vila Nova",
+    distance: 2.3,
+    rating: 3.8,
+  },
+  {
+    name: "Mercado São José",
+    address: "Rua São José, 321 - São José",
+    distance: 1.2,
+    rating: 4.5,
+  },
+  {
+    name: "Hipermercado Nacional",
+    address: "Av. Nacional, 654 - Centro",
+    distance: 3.0,
+    rating: 4.1,
+  },
+];
+
+export async function main() {
+  console.log("Iniciando seed do banco de dados...");
+
+  // Limpar dados existentes
+  await prisma.shoppingListItem.deleteMany();
+  await prisma.shoppingList.deleteMany();
+  await prisma.product.deleteMany();
+  await prisma.market.deleteMany();
+  await prisma.user.deleteMany();
+
+  console.log("Dados existentes removidos.");
+
+  // Criar usuários
+  console.log("Criando usuários...");
+  const createdUsers = [];
+  for (const user of userData) {
+    const createdUser = await prisma.user.create({ data: user });
+    createdUsers.push(createdUser);
+  }
+  console.log(`${createdUsers.length} usuários criados.`);
+
+  // Criar produtos
+  console.log("Criando produtos...");
+  const createdProducts = [];
+  for (const product of productData) {
+    const createdProduct = await prisma.product.create({ data: product });
+    createdProducts.push(createdProduct);
+  }
+  console.log(`${createdProducts.length} produtos criados.`);
+
+  // Criar mercados
+  console.log("Criando mercados...");
+  const createdMarkets = [];
+  for (const market of marketData) {
+    const createdMarket = await prisma.market.create({ data: market });
+    createdMarkets.push(createdMarket);
+  }
+  console.log(`${createdMarkets.length} mercados criados.`);
+
+  // Criar algumas listas de compras de exemplo
+  console.log("Criando listas de compras de exemplo...");
+  const shoppingList1 = await prisma.shoppingList.create({
+    data: {
+      name: "Compras da Semana",
+      status: "active",
+      userId: createdUsers[0].id,
+      items: {
+        create: [
+          {
+            quantity: 1,
+            productId: createdProducts[0].id, // Arroz
+          },
+          {
+            quantity: 2,
+            productId: createdProducts[1].id, // Feijão
+          },
+          {
+            quantity: 1,
+            productId: createdProducts[4].id, // Leite
+          },
+          {
+            quantity: 3,
+            productId: createdProducts[6].id, // Banana
+            collected: true,
+          },
+        ],
+      },
+    },
+  });
+
+  const shoppingList2 = await prisma.shoppingList.create({
+    data: {
+      name: "Produtos de Limpeza",
+      status: "active",
+      userId: createdUsers[1].id,
+      items: {
+        create: [
+          {
+            quantity: 2,
+            productId: createdProducts[8].id, // Detergente
+          },
+          {
+            quantity: 1,
+            productId: createdProducts[9].id, // Sabão em pó
+          },
+          {
+            quantity: 1,
+            productId: createdProducts[10].id, // Papel higiênico
+          },
+        ],
+      },
+    },
+  });
+
+  const shoppingList3 = await prisma.shoppingList.create({
+    data: {
+      name: "Lista Finalizada",
+      status: "completed",
+      userId: createdUsers[0].id,
+      items: {
+        create: [
+          {
+            quantity: 1,
+            productId: createdProducts[12].id, // Macarrão
+            collected: true,
+          },
+          {
+            quantity: 1,
+            productId: createdProducts[13].id, // Molho de tomate
+            collected: true,
+          },
+        ],
+      },
+    },
+  });
+
+  console.log("3 listas de compras criadas com itens.");
+
+  console.log("Seed concluído com sucesso!");
+}
+
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
