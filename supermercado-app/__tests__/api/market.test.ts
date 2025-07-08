@@ -29,4 +29,28 @@ describe('Market API', () => {
     expect(res.body[0]).toHaveProperty('name')
   })
 })
+describe('Market API', () => {
+  // ... testes anteriores
+
+  it('should get a market by id', async () => {
+    // Primeiro, crie um mercado para garantir que exista um id
+    const createRes = await request('http://localhost:3000')
+      .post('/api/market')
+      .send({
+        name: 'Mercado Show',
+        address: 'Rua Show, 456',
+        distance: 2.5,
+        rating: 4.8,
+      })
+    expect(createRes.statusCode).toBe(201)
+    const marketId = createRes.body.id
+
+    // Agora, busque pelo id
+    const res = await request('http://localhost:3000').get(`/api/market/${marketId}`)
+
+    expect(res.statusCode).toBe(200)
+    expect(res.body).toHaveProperty('id', marketId)
+    expect(res.body.name).toBe('Mercado Show')
+  })
+})
 
