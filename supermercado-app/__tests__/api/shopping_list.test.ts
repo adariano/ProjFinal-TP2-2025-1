@@ -17,3 +17,26 @@ describe('POST /api/shopping_list', () => {
     expect(data.status).toBe('active');
   });
 });
+
+describe('GET /api/shopping_list', () => {
+  it('should return a list of shopping lists with status 200', async () => {
+    const response = await fetch('http://localhost:3000/api/shopping_list', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    expect(response.status).toBe(200);
+    const data = await response.json();
+    expect(Array.isArray(data)).toBe(true);
+
+    if (data.length > 0) {
+      expect(data[0]).toHaveProperty('id');
+      expect(data[0]).toHaveProperty('name');
+      expect(data[0]).toHaveProperty('status');
+      expect(data[0]).toHaveProperty('createdAt');
+      expect(data[0]).toHaveProperty('userId');
+      expect(data[0]).toHaveProperty('items');
+      expect(data[0]).toHaveProperty('user');
+    }
+  });
+});
