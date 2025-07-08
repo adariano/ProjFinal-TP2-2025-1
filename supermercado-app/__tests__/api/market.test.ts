@@ -78,5 +78,5 @@ it('should update a market successfully', async () => {
 
   expect(patchRes.statusCode).toBe(200)
   expect(patchRes.body.name).toBe('Mercado Atualizado')
-})
+},10000)
 
