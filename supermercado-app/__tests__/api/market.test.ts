@@ -14,3 +14,19 @@ describe('Market API', () => {
     expect(res.body.name).toBe('Mercado Exemplo');
   });
 });
+
+describe('Market API', () => {
+  // Teste do POST que você já fez...
+
+  it('should list all markets', async () => {
+    const res = await request('http://localhost:3000').get('/api/market')
+
+    expect(res.statusCode).toBe(200)
+    expect(Array.isArray(res.body)).toBe(true)
+    // Pode testar se tem pelo menos 1 mercado criado
+    expect(res.body.length).toBeGreaterThanOrEqual(1)
+    // E conferir se tem a propriedade 'name' em algum item
+    expect(res.body[0]).toHaveProperty('name')
+  })
+})
+
