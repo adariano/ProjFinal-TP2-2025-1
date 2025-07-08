@@ -30,8 +30,11 @@ next-env.d.ts
 dev.db
 dev.db-journal
 <<<<<<< HEAD
+<<<<<<< HEAD
 prisma/test.db
 =======
+=======
+>>>>>>> ac6c511 (Ajuste .gitginore)
 <<<<<<< HEAD
 test.db
 <<<<<<< HEAD
@@ -48,4 +51,14 @@ coverage/
 prisma/test.db
 
 >>>>>>> dd0f18e (Modificado README com instruções para gerar banco de dados)
+<<<<<<< HEAD
 >>>>>>> 3349c33 (Modificado README com instruções para gerar banco de dados)
+=======
+=======
+prisma/test.db
+
+#Ignore coverage results
+coverage/
+
+>>>>>>> cac6f4b (Ajuste .gitginore)
+>>>>>>> ac6c511 (Ajuste .gitginore)
