@@ -41,11 +41,32 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET - pega todas as listas de compras ou filtra por userId
+// GET - pega todas as listas de compras ou filtra por Id
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
     const userId = searchParams.get("userId");
+
+    if (id) {
+      const shoppingList = await prisma.shoppingList.findUnique({
+        where: { id: parseInt(id) },
+        include: {
+          items: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      });
+      if (!shoppingList) {
+        return NextResponse.json({ error: "Lista de compras não encontrada" }, { status: 404 });
+      }
+      return NextResponse.json(shoppingList);
+    }
 
     const where = userId ? { userId: parseInt(userId) } : {};
 
