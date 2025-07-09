@@ -80,3 +80,39 @@ describe('GET SHOW /api/shopping_list ', () => {
     expect(data).toHaveProperty('user');
   });
 });
+
+describe('PATCH /api/shopping_list', () => {
+  it('should update a shopping list and return the updated object', async () => {
+    // Cria uma lista para garantir que existe
+    const createResponse = await fetch('http://localhost:3000/api/shopping_list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Lista Patch Teste',
+        userId: 1 // Certifique-se que esse usuário existe
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+
+    // Atualiza a lista criada
+    const patchResponse = await fetch('http://localhost:3000/api/shopping_list', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: created.id,
+        name: 'Lista Atualizada',
+        status: 'completed'
+      }),
+    });
+
+    expect(patchResponse.status).toBe(200);
+    const updated = await patchResponse.json();
+    expect(updated).toHaveProperty('id', created.id);
+    expect(updated).toHaveProperty('name', 'Lista Atualizada');
+    expect(updated).toHaveProperty('status', 'completed');
+    expect(updated).toHaveProperty('userId', 1);
+    expect(updated).toHaveProperty('items');
+    expect(updated).toHaveProperty('user');
+  });
+});
