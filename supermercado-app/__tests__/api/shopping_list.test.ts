@@ -50,3 +50,33 @@ describe('GET /api/shopping_list', () => {
     }
   });
 });
+
+describe('GET SHOW /api/shopping_list ', () => {
+  it('should return a specific shopping list by id with status 200', async () => {
+    // Primeiro, cria uma lista para garantir que existe
+    const createResponse = await fetch('http://localhost:3000/api/shopping_list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Lista Show Teste',
+        userId: 1 // Certifique-se que esse usuário existe
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+
+    // Agora, busca a lista pelo id
+    const getResponse = await fetch(`http://localhost:3000/api/shopping_list?id=${created.id}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    expect(getResponse.status).toBe(200);
+    const data = await getResponse.json();
+    expect(data).toHaveProperty('id', created.id);
+    expect(data).toHaveProperty('name', 'Lista Show Teste');
+    expect(data).toHaveProperty('userId', 1);
+    expect(data).toHaveProperty('items');
+    expect(data).toHaveProperty('user');
+  });
+});
