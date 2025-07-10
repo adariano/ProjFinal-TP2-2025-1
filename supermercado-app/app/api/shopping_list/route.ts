@@ -134,3 +134,33 @@ export async function PATCH(req: NextRequest) {
     );
   }
 }
+
+// DELETE - deletar lista de compras
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "É necessário o ID da lista de compra" },
+        { status: 400 }
+      );
+    }
+
+    await prisma.shoppingList.delete({
+      where: { id: parseInt(id) },
+    });
+
+    return NextResponse.json(
+      { message: "Lista de compras deletada com sucesso" },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Falha ao deletar lista de compras:", error);
+    return NextResponse.json(
+      { error: "Falha ao deletar lista de compras" },
+      { status: 500 }
+    );
+  }
+}
