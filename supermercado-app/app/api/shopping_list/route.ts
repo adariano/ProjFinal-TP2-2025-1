@@ -93,3 +93,44 @@ export async function GET(req: NextRequest) {
     );
   }
 }
+
+// PATCH - update shopping list
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { id, name, status } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Shopping list ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const updatedShoppingList = await prisma.shoppingList.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(status && { status }),
+      },
+      include: {
+        items: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json(updatedShoppingList);
+  } catch (error) {
+    console.error("Failed to update shopping list:", error);
+    return NextResponse.json(
+      { error: "Failed to update shopping list" },
+      { status: 500 }
+    );
+  }
+}
