@@ -116,3 +116,36 @@ describe('PATCH /api/shopping_list', () => {
     expect(updated).toHaveProperty('user');
   });
 });
+
+describe('DELETE /api/shopping_list', () => {
+  it('should delete a shopping list and return a success message', async () => {
+    // Cria uma lista para garantir que existe
+    const createResponse = await fetch('http://localhost:3000/api/shopping_list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: 'Lista Delete Teste',
+        userId: 1 // Certifique-se que esse usuário existe
+      }),
+    });
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+
+    // Deleta a lista criada
+    const deleteResponse = await fetch(`http://localhost:3000/api/shopping_list?id=${created.id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    expect(deleteResponse.status).toBe(200);
+    const result = await deleteResponse.json();
+    expect(result).toHaveProperty('message', 'Shopping list deleted successfully');
+
+    // Tenta buscar a lista deletada para garantir que não existe mais
+    const getResponse = await fetch(`http://localhost:3000/api/shopping_list?id=${created.id}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(getResponse.status).toBe(404);
+  });
+});

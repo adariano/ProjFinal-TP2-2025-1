@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// PATCH - update shopping list
+// PATCH - atualiza lista de compras
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
@@ -102,7 +102,7 @@ export async function PATCH(req: NextRequest) {
 
     if (!id) {
       return NextResponse.json(
-        { error: "Shopping list ID is required" },
+        { error: "É necessário o ID da lista de compras" },
         { status: 400 }
       );
     }
@@ -127,9 +127,9 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json(updatedShoppingList);
   } catch (error) {
-    console.error("Failed to update shopping list:", error);
+    console.error("Falha ao atualizar lista de compras:", error);
     return NextResponse.json(
-      { error: "Failed to update shopping list" },
+      { error: "Falha ao atualizar lista de compras" },
       { status: 500 }
     );
   }
