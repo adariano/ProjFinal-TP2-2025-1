@@ -25,7 +25,7 @@ export function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
 
     const parsedUser = JSON.parse(userData)
 
-    if (requireAdmin && parsedUser.role !== "admin") {
+    if (requireAdmin && parsedUser.role !== "ADMIN") {
       router.push("/dashboard")
       return
     }
