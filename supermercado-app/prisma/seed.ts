@@ -2,33 +2,41 @@ import { PrismaClient, Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
-// Dados de usuários
-const userData: Prisma.UserCreateInput[] = [
-  {
-    name: "João Silva",
-    email: "joao.silva@email.com",
-    cpf: "12345678901",
-    role: "USER",
-  },
-  {
-    name: "Maria Santos",
-    email: "maria.santos@email.com",
-    cpf: "23456789012",
-    role: "USER",
-  },
-  {
-    name: "Pedro Admin",
-    email: "admin@supermercado.com",
-    cpf: "34567890123",
-    role: "ADMIN",
-  },
-  {
-    name: "Ana Costa",
-    email: "ana.costa@email.com",
-    cpf: "45678901234",
-    role: "USER",
-  },
-];
+// Função para criar usuários com senhas simples (temporário)
+async function createUsersWithSimplePasswords() {
+  const userData = [
+    {
+      name: "João Silva",
+      email: "joao.silva@email.com",
+      cpf: "12345678901",
+      password: "123456", // Senha simples para teste
+      role: "USER" as const,
+    },
+    {
+      name: "Maria Santos", 
+      email: "maria.santos@email.com",
+      cpf: "23456789012",
+      password: "123456",
+      role: "USER" as const,
+    },
+    {
+      name: "Administrador",
+      email: "admin@economarket.com",
+      cpf: "34567890123",
+      password: "admin123",
+      role: "ADMIN" as const,
+    },
+    {
+      name: "Ana Costa",
+      email: "ana.costa@email.com",
+      cpf: "45678901234", 
+      password: "123456",
+      role: "USER" as const,
+    },
+  ];
+
+  return userData;
+}
 
 // Dados de produtos
 const productData: Prisma.ProductCreateInput[] = [
@@ -172,6 +180,7 @@ export async function main() {
 
   // Criar usuários
   console.log("Criando usuários...");
+  const userData = await createUsersWithSimplePasswords();
   const createdUsers = [];
   for (const user of userData) {
     const createdUser = await prisma.user.create({ data: user });
