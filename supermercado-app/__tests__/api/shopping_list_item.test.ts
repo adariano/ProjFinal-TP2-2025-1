@@ -59,7 +59,7 @@ describe("app /api/shopping_list_item", () => {
             expect(item.shoppingList).toHaveProperty("name");
             expect(item.product).toHaveProperty("id");
             expect(item.product).toHaveProperty("name");
-            expect(item.product).toHaveProperty("price");
+            expect(item.product).toHaveProperty("avgPrice");
         });
 
     interface ShoppingList {
