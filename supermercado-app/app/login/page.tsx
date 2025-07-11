@@ -25,35 +25,32 @@ export default function LoginPage() {
     setLoading(true)
     setError("")
 
-    // Simulação de autenticação - substituir por API real
     try {
-      if (email === "admin@economarket.com" && password === "admin123") {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            id: 1,
-            email,
-            name: "Administrador",
-            role: "admin",
-          }),
-        )
-        router.push("/admin")
-      } else if (email && password) {
-        localStorage.setItem(
-          "user",
-          JSON.stringify({
-            id: 2,
-            email,
-            name: "Usuário Teste",
-            role: "user",
-          }),
-        )
-        router.push("/dashboard")
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Salvar dados do usuário no localStorage
+        localStorage.setItem('user', JSON.stringify(data.user))
+        
+        // Redirecionar baseado no role do usuário
+        if (data.user.role === 'ADMIN') {
+          router.push('/admin')
+        } else {
+          router.push('/dashboard')
+        }
       } else {
-        setError("Email e senha são obrigatórios")
+        setError(data.error || 'Erro ao fazer login')
       }
     } catch (err) {
-      setError("Erro ao fazer login. Tente novamente.")
+      setError('Erro ao conectar com o servidor. Tente novamente.')
     } finally {
       setLoading(false)
     }
@@ -130,13 +127,6 @@ export default function LoginPage() {
                   Criar conta gratuita
                 </Link>
               </p>
-            </div>
-
-            {/* Demo credentials */}
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-600">
-              <p className="font-medium mb-1">Credenciais de teste:</p>
-              <p>Admin: admin@economarket.com / admin123</p>
-              <p>Usuário: qualquer@email.com / qualquersenha</p>
             </div>
           </CardContent>
         </Card>
