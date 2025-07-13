@@ -1,0 +1,9 @@
+DATA | Horas trabalhadas | Tipo de tarefa | Descrição || Descrição detalhada
+
+06/07 | 2h40 | Desenvolvimento | Desenvolvimento dos métodos e testes da API da lista de compras || Resolvendo problemas e início do desenvolvimendo orientado a testes, teste do método POST
+08/07 | 1h | Desenvolvimento | Desenvolvimento dos métodos e testes da API da lista de compras || Desenvolvimento orientado à testes do método POST e do método GET.
+09/07 | 1h | Desenvolvimento | Desenvolvimentos dos métodos e testas da API da lista de compras || Desenvolvimento orientado à testes do método GET, e testes envolvendo o método GET e o método PATCH.
+09/07 | 40min | Desenvolvimento | Desenvolvimentos dos métodos e testas da API da lista de compras || Desenvolvimento orientado à testes do método PATCH, DELETE e testes envolvendo os dois.
+10/07 | 1h | Desenvolvimento | Desenvolvimentos dos métodos e testas da API da lista de compras || Ajuste nos testes
+
+TOTAL: 6h20min
