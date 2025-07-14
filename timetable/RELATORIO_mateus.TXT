@@ -1,0 +1,15 @@
+Mateus Lucas Oliveira Filho 221000080
+
+Data | Horas Trabalhadas | Tipo Tarefa | Descrição da Tarefa Realizada
+
+30/6 | 4 | especificar os módulos | definição das entidades e atributos do módulo de mercados
+
+04/7 | 6 | codificar módulo | implementação de cadastro de mercados com localização via GPS
+
+06/7 | 4 | revisar especificações | leitura sobre os requisitos de distância e ordenação
+
+09/7 | 6 | redigir casos de teste | testes para validação de geolocalização
+
+10/7 | 5 | projetar | fluxo de uso do GPS interno para seleção de supermercado
+
+12/7 | 3 | estudar aulas e laboratórios relacionados | técnicas de visão computacional

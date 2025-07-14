@@ -6,6 +6,8 @@ const tsJestTransformCfg = createDefaultPreset().transform
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "node",
+  collectCoverage: true,
+  coverageDirectory: "coverage",
   testMatch: ["**/__tests__/**/*.test.ts"],
   transform: {
     "^.+\\.tsx?$": ["ts-jest", { isolatedModules: true }],

@@ -1,0 +1,13 @@
+Guilherme Kaua Farias do Nascimento 222001449
+
+Data | Horas Trabalhadas | Tipo Tarefa | Descrição da Tarefa Realizada
+
+28/6 | 5 | especificar os módulos | definição dos módulos de cadastro de produtos
+
+30/6 | 4 | codificar módulo | código para produtos
+
+04/7 | 2 | revisar projetos | revisão da lógica de verificação de produtos
+
+05/7 | 2 | redigir casos de teste | testes de fluxo de informações no sistema
+
+09/7 | 3 | revisar código do módulo | ajustes no módulo de comparação de preço no caixa

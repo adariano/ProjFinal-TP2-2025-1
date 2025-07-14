@@ -1,0 +1,13 @@
+Victor Henrique da Silva Costa 212006450
+
+Data | Horas Trabalhadas | Tipo Tarefa | Descrição da Tarefa Realizada
+
+28/6 | 4 | projetar | estruturação do banco com tabelas de usuários, produtos, mercados e listas
+
+30/6 | 3 | especificar as funções | definição das funções para interação com o banco de dados
+
+03/7 | 3 | codificar módulo | criação do banco de dados inicial
+
+04/7 | 2 | revisar projetos | verificação da integridade e relacionamentos entre tabelas
+
+11/7 | 2 | rodar o verificador estático e retirar warnings | ajustes nas configurações do codigo com banco de dados

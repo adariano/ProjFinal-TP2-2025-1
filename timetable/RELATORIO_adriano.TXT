@@ -1,0 +1,17 @@
+Adriano Lopes de Sousa 170097960
+
+30/6 | 2 | realizar os testes | testes unitários da função de sugestão de preço
+
+02/6 | 2 | fazer diagramas | criação de diagrama de fluxo para adição de item e preço compartilhado
+
+03/7 | 2 | estudar aulas e laboratórios relacionados | pesquisa sobre reconhecimento de imagem
+
+05/7 | 3 | instrumentar verificando a cobertura | cobertura de testes nas funções de busca e sugestão
+
+07/7 | 3 | fazer diagramas | elaboração de diagrama de sequência para o processo de recomendação de supermercado
+
+08/7 | 4 | estudar aulas e laboratórios relacionados | estudo das tecnicas utilizadas
+
+09/7 | 2 | fazer diagramas | diagrama de casos de uso focado na interação entre usuário, lista e compartilhamento de dados
+
+12/7 | 5 | codificar módulo | integração entre frontend e backend
