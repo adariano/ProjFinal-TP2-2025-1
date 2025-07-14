@@ -71,16 +71,30 @@ export default function CadastroPage() {
       return
     }
 
-    // Simulação de cadastro - substituir por API real
     try {
-      // Simular delay de API
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          cpf: formData.cpf.replace(/\D/g, ''),
+        }),
+      })
 
-      // Simular sucesso
-      alert("Cadastro realizado com sucesso! Redirecionando para o login...")
-      router.push("/login")
+      const data = await response.json()
+
+      if (response.ok) {
+        alert("Cadastro realizado com sucesso! Redirecionando para o login...")
+        router.push("/login")
+      } else {
+        setError(data.error || 'Erro ao criar conta')
+      }
     } catch (err) {
-      setError("Erro ao criar conta. Tente novamente.")
+      setError("Erro ao conectar com o servidor. Tente novamente.")
     } finally {
       setLoading(false)
     }

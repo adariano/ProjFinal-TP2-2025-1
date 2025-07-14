@@ -18,6 +18,7 @@ model User {
   name           String
   email          String          @unique
   cpf            String          @unique
+  password       String
   role           Role            @default(USER)
   createdAt      DateTime        @default(now())
   shoppingLists  ShoppingList[]
