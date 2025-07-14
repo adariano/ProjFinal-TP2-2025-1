@@ -1,0 +1,15 @@
+Caio Azeredo Acciares 212006728
+
+Data | Horas Trabalhadas | Tipo Tarefa | Descrição da Tarefa Realizada
+
+28/6 | 3 | especificar os módulos | definição do módulo de autenticação de usuário com verificação de formato no email
+
+29/6 | 4 | codificar módulo | implementação inicial do login e registro com validação de senha
+
+01/7 | 2 | redigir casos de teste | testes de autenticação com credenciais quaisquer
+
+02/7 | 2 | revisar código do módulo | ajustes na autenticação
+
+05/7 | 2 | rodar o verificador estático e retirar warnings | lint no módulo de histórico
+
+09/7 | 3 | estudar aulas e laboratórios relacionados | leitura de material teórico

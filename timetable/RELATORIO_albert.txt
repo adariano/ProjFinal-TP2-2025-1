@@ -1,0 +1,15 @@
+Albert Teixeira Soares 211035108
+
+Data | Horas Trabalhadas | Tipo Tarefa | Descrição da Tarefa Realizada
+
+01/7 | 4 | revisar especificações | verificação da consistência com os requisitos
+
+04/7 | 2 | revisar projetos | revisão da lógica de verificação de produtos
+
+06/7 | 4 | codificar módulo | criação do módulo de login  
+
+09/7 | 2 | revisar código do módulo | ajustes de bugs
+
+11/7 | 4 | estudar aulas e laboratórios relacionados | estudo de algoritmos, pastas e arquivos
+
+12/7 | 2 | codificar módulo | ajuste no layout dos botões

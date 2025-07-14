@@ -1,0 +1,13 @@
+Samuel Carvalho dos Santos 211010388
+
+Data | Horas Trabalhadas | Tipo Tarefa | Descrição da Tarefa Realizada
+
+30/6 | 2 | especificar os módulos | definição de permissões administrativas e validação de produtos
+
+01/7 | 3 | codificar módulo | criação do painel de aprovação de produtos e gerenciamento de usuários
+
+04/7 | 3 | estudar aulas e laboratórios relacionados | revisão de conceitos básicos
+
+08/7 | 3 | revisar código do módulo | melhorias no fluxo de aprovação de itens sugeridos por usuários
+
+10/7 | 2 | revisar especificações | validação final das regras de cálculo de preço total

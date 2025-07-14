@@ -1,0 +1,17 @@
+Vinícius Resplandes Caetano 231025234
+
+Data | Horas Trabalhadas | Tipo Tarefa | Descrição da Tarefa Realizada
+
+28/6 | 5 | revisar código do módulo e revisar projetos | revisao do frontend e das principais funcionalidades do prototipo 1
+
+01/7 | 3 | codificar módulo | alterações em funções que foram criadas até o momento
+
+05/7 | 2 | estudar aulas e laboratórios relacionados | linguagens utilizadas no projeto
+
+06/7 | 3 | reuniao de 3h com a equipe | divisão de tarefas para algumas issues novas dentro do grupo
+
+08/7 | 2 | estudar aulas e laboratórios relacionados | recursos utilizados no projeto
+
+12/7 | 1 | execução dos testes e do verificador da cobertura | compreensão do funcionamento final do codigo localmente
+
+13/7 | 2 | revisar especificações | observar o projeto a partir da exigência inicial

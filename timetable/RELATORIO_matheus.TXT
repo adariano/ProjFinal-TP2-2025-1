@@ -1,0 +1,15 @@
+Matheus Chagas Lopes 222011599
+
+Data | Horas Trabalhadas | Tipo Tarefa | Descrição da Tarefa Realizada
+
+28/6 | 3 | projetar | esboço da listas entre usuários
+
+29/6 | 3 | especificar os módulos | criação do módulo de gerenciamento de produtos
+
+02/7 | 4 | codificar módulo | cadastrar, editar e buscar produtos com filtros
+
+03/7 | 3 | revisar código do módulo | verificação da lógica de produtos  no sistema
+
+06/7 | 3 | redigir casos de teste | testes de cadastro e busca de produtos
+
+10/7 | 4 | estudar aulas e laboratórios relacionados | estudo da linguagem e github
