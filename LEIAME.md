@@ -22,3 +22,4 @@ Execute `npm run lint`
 ### Para documentação
 - Diagramas estão contidos nas pastas `./docs/diagramas_*`
 - Os relatórios de tempo estão em `./timetable`
+- [O link do repositório do GitHub](https://github.com/adariano/ProjFinal-TP2-2025-1)
