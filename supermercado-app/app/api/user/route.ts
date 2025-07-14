@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 
-<<<<<<< HEAD
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
@@ -24,9 +23,6 @@ export async function GET() {
   }
 }
 
-=======
-// POST - Criar novo usuário
->>>>>>> 0a5a561 (Ajustando o erro nos testes configuracoes estavam erradas)
 export async function POST(req: Request) {
   try {
     const body = await req.json();
