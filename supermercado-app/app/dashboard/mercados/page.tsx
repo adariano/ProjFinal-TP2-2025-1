@@ -17,9 +17,11 @@ import {
   Search,
   Locate,
   Filter,
+  Plus,
 } from "lucide-react"
 import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
+import { AddMarketDialog } from "@/components/add-market-dialog"
 
 // Mock data for markets
 const mockMarkets = [
@@ -102,6 +104,7 @@ export default function MercadosPage() {
   const [isLoadingLocation, setIsLoadingLocation] = useState(false)
   const [markets, setMarkets] = useState(mockMarkets)
   const [sortBy, setSortBy] = useState<"distance" | "rating" | "price">("distance")
+  const [showAddMarketDialog, setShowAddMarketDialog] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -190,9 +193,16 @@ export default function MercadosPage() {
   }
 
   const openInMaps = (market: any) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(market.address)}`
+    // Use the custom Google Maps URL if available, otherwise generate one
+    const url = market.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(market.address)}`
     window.open(url, "_blank")
   }
+
+  const handleMarketAdded = (newMarket: any) => {
+    setMarkets(prev => [newMarket, ...prev])
+  }
+
+  const isAdmin = user?.role === 'ADMIN'
 
   if (!user) {
     return <div>Carregando...</div>
@@ -218,50 +228,80 @@ export default function MercadosPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Mercados Próximos</h1>
-          <p className="text-gray-600">Encontre os melhores mercados na sua região</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Mercados Próximos</h1>
+              <p className="text-gray-600">Encontre os melhores mercados na sua região</p>
+            </div>
+            {isAdmin && (
+              <Button 
+                onClick={() => setShowAddMarketDialog(true)}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Mercado
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Location Search */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5" />
-              Localização
-            </CardTitle>
-            <CardDescription>Use sua localização atual ou busque por um endereço específico</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Digite um endereço..."
-                  value={searchAddress}
-                  onChange={(e) => setSearchAddress(e.target.value)}
-                  onKeyPress={(e) => e.key === "Enter" && searchByAddress()}
-                />
+        {!isAdmin && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="h-5 w-5" />
+                Localização
+              </CardTitle>
+              <CardDescription>Use sua localização atual ou busque por um endereço específico</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="Digite um endereço..."
+                    value={searchAddress}
+                    onChange={(e) => setSearchAddress(e.target.value)}
+                    onKeyPress={(e) => e.key === "Enter" && searchByAddress()}
+                  />
+                </div>
+                <Button onClick={searchByAddress} variant="outline">
+                  <Search className="h-4 w-4 mr-2" />
+                  Buscar
+                </Button>
+                <Button
+                  onClick={getCurrentLocation}
+                  disabled={isLoadingLocation}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Locate className="h-4 w-4 mr-2" />
+                  {isLoadingLocation ? "Localizando..." : "Minha Localização"}
+                </Button>
               </div>
-              <Button onClick={searchByAddress} variant="outline">
-                <Search className="h-4 w-4 mr-2" />
-                Buscar
-              </Button>
-              <Button
-                onClick={getCurrentLocation}
-                disabled={isLoadingLocation}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Locate className="h-4 w-4 mr-2" />
-                {isLoadingLocation ? "Localizando..." : "Minha Localização"}
-              </Button>
-            </div>
-            {currentLocation && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <MapPin className="h-4 w-4" />
-                <span>Localização atual: {currentLocation}</span>
+              {currentLocation && (
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <MapPin className="h-4 w-4" />
+                  <span>Localização atual: {currentLocation}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Admin Info Card */}
+        {isAdmin && (
+          <Card className="mb-8 bg-blue-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-blue-800">
+                <MapPin className="h-5 w-5" />
+                <span className="font-medium">Modo Administrador</span>
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <p className="text-sm text-blue-700 mt-1">
+                Você está visualizando todos os mercados do sistema. Use o botão "Adicionar Mercado" para cadastrar novos estabelecimentos.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card className="mb-6">
@@ -376,6 +416,13 @@ export default function MercadosPage() {
           </Card>
         )}
       </div>
+
+      {/* Add Market Dialog */}
+      <AddMarketDialog
+        open={showAddMarketDialog}
+        onOpenChange={setShowAddMarketDialog}
+        onMarketAdded={handleMarketAdded}
+      />
     </div>
   )
 }

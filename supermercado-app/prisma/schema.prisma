@@ -35,11 +35,19 @@ model Product {
 }
 
 model Market {
-  id        Int     @id @default(autoincrement())
-  name      String
-  address   String
-  distance  Float
-  rating    Float
+  id            Int      @id @default(autoincrement())
+  name          String
+  address       String
+  distance      Float
+  rating        Float
+  phone         String?
+  hours         String?
+  googleMapsUrl String?
+  priceLevel    String?
+  categories    String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
 }
 
 model ShoppingList {

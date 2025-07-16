@@ -5,9 +5,20 @@ import { prisma } from '@/lib/prisma'
 export async function POST(request: Request) {
   const data = await request.json()
 
-  const { name, address, distance, rating } = data
+  const { 
+    name, 
+    address, 
+    distance, 
+    rating, 
+    phone, 
+    hours, 
+    googleMapsUrl, 
+    priceLevel, 
+    categories, 
+    description 
+  } = data
 
-  if (!name || !address || distance === undefined || rating === undefined) {
+  if (!name || !address || !phone || !googleMapsUrl) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
@@ -16,8 +27,14 @@ export async function POST(request: Request) {
       data: {
         name,
         address,
-        distance,
-        rating,
+        distance: distance || 0,
+        rating: rating || 4.0,
+        phone,
+        hours,
+        googleMapsUrl,
+        priceLevel,
+        categories,
+        description,
       },
     })
 
@@ -27,9 +44,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Erro ao criar mercado' }, { status: 500 })
   }
 }
+
 export async function GET() {
   try {
-    const markets = await prisma.market.findMany()
+    const markets = await prisma.market.findMany({
+      orderBy: {
+        name: 'asc'
+      }
+    })
     return NextResponse.json(markets, { status: 200 })
   } catch (error) {
     console.error('Erro ao listar mercados:', error)
