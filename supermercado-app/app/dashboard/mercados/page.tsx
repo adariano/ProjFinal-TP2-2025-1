@@ -18,10 +18,14 @@ import {
   Locate,
   Filter,
   Plus,
+  Edit,
+  Trash2,
 } from "lucide-react"
 import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
 import { AddMarketDialog } from "@/components/add-market-dialog"
+import { RateMarketDialog } from "@/components/rate-market-dialog"
+import { EditMarketDialog } from "@/components/edit-market-dialog"
 
 // Mock data for markets
 const mockMarkets = [
@@ -102,9 +106,13 @@ export default function MercadosPage() {
   const [searchAddress, setSearchAddress] = useState("")
   const [currentLocation, setCurrentLocation] = useState<string>("")
   const [isLoadingLocation, setIsLoadingLocation] = useState(false)
-  const [markets, setMarkets] = useState(mockMarkets)
+  const [markets, setMarkets] = useState<any[]>([])
+  const [isLoadingMarkets, setIsLoadingMarkets] = useState(true)
   const [sortBy, setSortBy] = useState<"distance" | "rating" | "price">("distance")
   const [showAddMarketDialog, setShowAddMarketDialog] = useState(false)
+  const [showRateMarketDialog, setShowRateMarketDialog] = useState(false)
+  const [showEditMarketDialog, setShowEditMarketDialog] = useState(false)
+  const [selectedMarket, setSelectedMarket] = useState<any>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -115,6 +123,41 @@ export default function MercadosPage() {
     }
     setUser(JSON.parse(userData))
   }, [router])
+
+  // Load markets from API
+  useEffect(() => {
+    const loadMarkets = async () => {
+      try {
+        const response = await fetch('/api/market')
+        if (response.ok) {
+          const apiMarkets = await response.json()
+          
+          // Transform API data to match expected format
+          const transformedMarkets = apiMarkets.map((market: any) => ({
+            ...market,
+            categories: market.categories ? market.categories.split(",").map((c: string) => c.trim()).filter((c: string) => c) : [],
+            reviews: market.reviews || 0,
+            estimatedTime: market.estimatedTime || "N/A",
+            coordinates: market.coordinates || { lat: 0, lng: 0 },
+          }))
+          
+          setMarkets(transformedMarkets)
+        } else {
+          console.error('Failed to load markets')
+          // Fallback to mock data
+          setMarkets(mockMarkets)
+        }
+      } catch (error) {
+        console.error('Error loading markets:', error)
+        // Fallback to mock data
+        setMarkets(mockMarkets)
+      } finally {
+        setIsLoadingMarkets(false)
+      }
+    }
+
+    loadMarkets()
+  }, [])
 
   const getCurrentLocation = () => {
     setIsLoadingLocation(true)
@@ -200,6 +243,59 @@ export default function MercadosPage() {
 
   const handleMarketAdded = (newMarket: any) => {
     setMarkets(prev => [newMarket, ...prev])
+  }
+
+  const handleMarketUpdated = (updatedMarket: any) => {
+    setMarkets(prev => prev.map(market => 
+      market.id === updatedMarket.id ? updatedMarket : market
+    ))
+  }
+
+  const handleRatingSubmitted = (marketId: number, rating: number, comment: string) => {
+    setMarkets(prev => prev.map(market => 
+      market.id === marketId 
+        ? { 
+            ...market, 
+            rating: ((market.rating * market.reviews) + rating) / (market.reviews + 1),
+            reviews: market.reviews + 1,
+            userRating: rating,
+            userComment: comment
+          }
+        : market
+    ))
+  }
+
+  const handleRateMarket = (market: any) => {
+    setSelectedMarket(market)
+    setShowRateMarketDialog(true)
+  }
+
+  const handleEditMarket = (market: any) => {
+    setSelectedMarket(market)
+    setShowEditMarketDialog(true)
+  }
+
+  const handleDeleteMarket = async (market: any) => {
+    if (!window.confirm(`Tem certeza que deseja excluir o mercado "${market.name}"?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/market?id=${market.id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error('Erro ao excluir mercado')
+      }
+
+      // Remove the market from the local state
+      setMarkets(prev => prev.filter(m => m.id !== market.id))
+      alert('Mercado excluído com sucesso!')
+    } catch (error) {
+      console.error('Error deleting market:', error)
+      alert('Erro ao excluir mercado. Tente novamente.')
+    }
   }
 
   const isAdmin = user?.role === 'ADMIN'
@@ -340,78 +436,129 @@ export default function MercadosPage() {
 
         {/* Markets List */}
         <div className="space-y-4">
-          {markets.map((market) => (
-            <Card key={market.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold">{market.name}</h3>
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        {market.distance.toFixed(1)} km
-                      </Badge>
-                      <Badge variant="outline">{getPriceLevelText(market.priceLevel)}</Badge>
-                    </div>
-
-                    <div className="flex items-center gap-4 mb-3">
-                      <div className="flex items-center gap-1">
-                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                        <span className="font-medium">{market.rating}</span>
-                        <span className="text-gray-600">({market.reviews} avaliações)</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-gray-600">
-                        <Clock className="h-4 w-4" />
-                        <span>{market.hours}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-3">
-                      <MapPin className="h-4 w-4 text-gray-600" />
-                      <span className="text-gray-600">{market.address}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2 mb-4">
-                      {market.categories.map((category, index) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {category}
+          {isLoadingMarkets ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Carregando mercados...</p>
+            </div>
+          ) : (
+            markets.map((market) => (
+              <Card key={market.id} className="hover:shadow-md transition-shadow">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="text-xl font-semibold">{market.name}</h3>
+                        <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          {market.distance.toFixed(1)} km
                         </Badge>
-                      ))}
+                        <Badge variant="outline">{getPriceLevelText(market.priceLevel)}</Badge>
+                      </div>
+
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="flex items-center gap-1">
+                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                          <span className="font-medium">{market.rating?.toFixed(1) || "N/A"}</span>
+                          <span className="text-gray-600">({market.reviews || 0} avaliações)</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-600">
+                          <Clock className="h-4 w-4" />
+                          <span>{market.hours || "Horário não informado"}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-3">
+                        <MapPin className="h-4 w-4 text-gray-600" />
+                        <span className="text-gray-600">{market.address}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 mb-4">
+                        {market.categories && market.categories.length > 0 ? (
+                          market.categories.map((category: string, index: number) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {category}
+                            </Badge>
+                          ))
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Supermercado
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <div className="flex items-center gap-1">
+                          <Phone className="h-4 w-4" />
+                          <span>{market.phone || "Telefone não informado"}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Navigation className="h-4 w-4" />
+                          <span>~{market.estimatedTime || "N/A"} de carro</span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Phone className="h-4 w-4" />
-                        <span>{market.phone}</span>
+                    <div className="flex flex-col gap-2 ml-4">
+                      <Button onClick={() => openInMaps(market)} className="bg-blue-600 hover:bg-blue-700">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Ver Rota
+                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleRateMarket(market)}
+                          className="flex-1"
+                        >
+                          <Star className="h-4 w-4 mr-1" />
+                          Avaliar
+                        </Button>
+                        {isAdmin && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleEditMarket(market)}
+                            className="flex-1"
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Editar
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteMarket(market)}
+                            className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Excluir
+                          </Button>
+                        )}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <Navigation className="h-4 w-4" />
-                        <span>~{market.estimatedTime} de carro</span>
-                      </div>
+                      <Button variant="outline" size="sm">
+                        <Phone className="h-4 w-4 mr-2" />
+                        Ligar
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="flex flex-col gap-2 ml-4">
-                    <Button onClick={() => openInMaps(market)} className="bg-blue-600 hover:bg-blue-700">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Ver Rota
-                    </Button>
-                    <Button variant="outline">
-                      <Phone className="h-4 w-4 mr-2" />
-                      Ligar
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
 
-        {markets.length === 0 && (
+        {!isLoadingMarkets && markets.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center">
               <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum mercado encontrado</h3>
-              <p className="text-gray-600">Tente buscar por um endereço diferente ou use sua localização atual.</p>
+              <p className="text-gray-600">
+                {isAdmin 
+                  ? "Comece adicionando o primeiro mercado ao sistema." 
+                  : "Tente buscar por um endereço diferente ou use sua localização atual."
+                }
+              </p>
             </CardContent>
           </Card>
         )}
@@ -422,6 +569,22 @@ export default function MercadosPage() {
         open={showAddMarketDialog}
         onOpenChange={setShowAddMarketDialog}
         onMarketAdded={handleMarketAdded}
+      />
+
+      {/* Rate Market Dialog */}
+      <RateMarketDialog
+        open={showRateMarketDialog}
+        onOpenChange={setShowRateMarketDialog}
+        market={selectedMarket}
+        onRatingSubmitted={handleRatingSubmitted}
+      />
+
+      {/* Edit Market Dialog */}
+      <EditMarketDialog
+        open={showEditMarketDialog}
+        onOpenChange={setShowEditMarketDialog}
+        market={selectedMarket}
+        onMarketUpdated={handleMarketUpdated}
       />
     </div>
   )

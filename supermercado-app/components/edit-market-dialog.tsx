@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,15 +12,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { MapPin, Phone, Clock, Star, Link as LinkIcon } from "lucide-react"
+import { MapPin, Phone, Clock, Star, Link as LinkIcon, Edit } from "lucide-react"
 
-interface AddMarketDialogProps {
+interface EditMarketDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onMarketAdded: (market: any) => void
+  market: any
+  onMarketUpdated: (updatedMarket: any) => void
 }
 
-export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarketDialogProps) {
+export function EditMarketDialog({ open, onOpenChange, market, onMarketUpdated }: EditMarketDialogProps) {
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -29,76 +30,53 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
     googleMapsUrl: "",
     priceLevel: "",
     categories: "",
-    rating: "4.0",
     description: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  useEffect(() => {
+    if (market) {
+      setFormData({
+        name: market.name || "",
+        address: market.address || "",
+        phone: market.phone || "",
+        hours: market.hours || "",
+        googleMapsUrl: market.googleMapsUrl || "",
+        priceLevel: market.priceLevel || "$$",
+        categories: Array.isArray(market.categories) ? market.categories.join(", ") : market.categories || "",
+        description: market.description || "",
+      })
+    }
+  }, [market])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.name || !formData.address || !formData.phone || !formData.googleMapsUrl) {
-      alert("Por favor, preencha todos os campos obrigatórios")
+    
+    if (!formData.name || !formData.address) {
+      alert("Por favor, preencha pelo menos o nome e endereço do mercado")
       return
     }
 
     setIsSubmitting(true)
 
     try {
-      // Call the API to save the market
-      const response = await fetch('/api/market', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          address: formData.address,
-          phone: formData.phone,
-          hours: formData.hours || "07:00 - 22:00",
-          googleMapsUrl: formData.googleMapsUrl,
-          priceLevel: formData.priceLevel || "$$",
-          categories: formData.categories,
-          description: formData.description,
-          rating: parseFloat(formData.rating),
-          distance: 0,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Erro ao salvar mercado')
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      const updatedMarket = {
+        ...market,
+        ...formData,
+        categories: formData.categories.split(",").map(c => c.trim()).filter(c => c),
+        updatedAt: new Date().toISOString(),
       }
-
-      const savedMarket = await response.json()
-
-      // Transform the saved market to match the expected format
-      const marketForUI = {
-        ...savedMarket,
-        categories: savedMarket.categories ? savedMarket.categories.split(",").map((c: string) => c.trim()).filter((c: string) => c) : [],
-        reviews: 0,
-        estimatedTime: "N/A",
-        coordinates: { lat: 0, lng: 0 },
-      }
-
-      onMarketAdded(marketForUI)
+      
+      onMarketUpdated(updatedMarket)
       onOpenChange(false)
       
-      // Reset form
-      setFormData({
-        name: "",
-        address: "",
-        phone: "",
-        hours: "",
-        googleMapsUrl: "",
-        priceLevel: "",
-        categories: "",
-        rating: "4.0",
-        description: "",
-      })
-
-      alert("Mercado adicionado com sucesso!")
+      alert("Mercado atualizado com sucesso!")
     } catch (error) {
-      console.error("Error adding market:", error)
-      alert("Erro ao adicionar mercado. Tente novamente.")
+      console.error("Error updating market:", error)
+      alert("Erro ao atualizar mercado. Tente novamente.")
     } finally {
       setIsSubmitting(false)
     }
@@ -111,16 +89,18 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
     }))
   }
 
+  if (!market) return null
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-green-600" />
-            Adicionar Novo Mercado
+            <Edit className="h-5 w-5 text-blue-600" />
+            Editar {market.name}
           </DialogTitle>
           <DialogDescription>
-            Cadastre um novo mercado no sistema. Todos os campos marcados com * são obrigatórios.
+            Atualize as informações do mercado
           </DialogDescription>
         </DialogHeader>
 
@@ -130,7 +110,6 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
               <Label htmlFor="name">Nome do Mercado *</Label>
               <Input
                 id="name"
-                placeholder="Ex: Supermercado São João"
                 value={formData.name}
                 onChange={(e) => handleInputChange("name", e.target.value)}
                 required
@@ -138,7 +117,7 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="priceLevel">Nível de Preço *</Label>
+              <Label htmlFor="priceLevel">Nível de Preço</Label>
               <Select value={formData.priceLevel} onValueChange={(value) => handleInputChange("priceLevel", value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o nível de preço" />
@@ -156,7 +135,6 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
             <Label htmlFor="address">Endereço Completo *</Label>
             <Input
               id="address"
-              placeholder="Ex: Rua das Flores, 123 - Centro, São Paulo - SP"
               value={formData.address}
               onChange={(e) => handleInputChange("address", e.target.value)}
               required
@@ -165,16 +143,14 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone *</Label>
+              <Label htmlFor="phone">Telefone</Label>
               <div className="relative">
                 <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="phone"
-                  placeholder="(11) 1234-5678"
                   value={formData.phone}
                   onChange={(e) => handleInputChange("phone", e.target.value)}
                   className="pl-10"
-                  required
                 />
               </div>
             </div>
@@ -185,7 +161,6 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
                 <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   id="hours"
-                  placeholder="07:00 - 22:00"
                   value={formData.hours}
                   onChange={(e) => handleInputChange("hours", e.target.value)}
                   className="pl-10"
@@ -195,59 +170,33 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="googleMapsUrl">Link do Google Maps *</Label>
+            <Label htmlFor="googleMapsUrl">Link do Google Maps</Label>
             <div className="relative">
               <LinkIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 id="googleMapsUrl"
-                placeholder="https://maps.google.com/..."
                 value={formData.googleMapsUrl}
                 onChange={(e) => handleInputChange("googleMapsUrl", e.target.value)}
                 className="pl-10"
-                required
               />
-            </div>
-            <p className="text-xs text-gray-500">
-              Cole o link completo do Google Maps para este mercado
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="rating">Avaliação Inicial</Label>
-              <div className="relative">
-                <Star className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <Select value={formData.rating} onValueChange={(value) => handleInputChange("rating", value)}>
-                  <SelectTrigger className="pl-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1.0">1.0 ⭐</SelectItem>
-                    <SelectItem value="2.0">2.0 ⭐⭐</SelectItem>
-                    <SelectItem value="3.0">3.0 ⭐⭐⭐</SelectItem>
-                    <SelectItem value="4.0">4.0 ⭐⭐⭐⭐</SelectItem>
-                    <SelectItem value="5.0">5.0 ⭐⭐⭐⭐⭐</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="categories">Categorias</Label>
-              <Input
-                id="categories"
-                placeholder="Supermercado, Farmácia, Padaria"
-                value={formData.categories}
-                onChange={(e) => handleInputChange("categories", e.target.value)}
-              />
-              <p className="text-xs text-gray-500">
-                Separe as categorias por vírgula
-              </p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Descrição (Opcional)</Label>
+            <Label htmlFor="categories">Categorias</Label>
+            <Input
+              id="categories"
+              placeholder="Supermercado, Farmácia, Padaria"
+              value={formData.categories}
+              onChange={(e) => handleInputChange("categories", e.target.value)}
+            />
+            <p className="text-xs text-gray-500">
+              Separe as categorias por vírgula
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="description">Descrição</Label>
             <Textarea
               id="description"
               placeholder="Informações adicionais sobre o mercado..."
@@ -269,9 +218,9 @@ export function AddMarketDialog({ open, onOpenChange, onMarketAdded }: AddMarket
             <Button 
               type="submit" 
               disabled={isSubmitting}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-blue-600 hover:bg-blue-700"
             >
-              {isSubmitting ? "Salvando..." : "Adicionar Mercado"}
+              {isSubmitting ? "Atualizando..." : "Atualizar Mercado"}
             </Button>
           </DialogFooter>
         </form>
