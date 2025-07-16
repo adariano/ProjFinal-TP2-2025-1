@@ -1,256 +1,446 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { ShoppingCart, Plus, Search, MapPin, TrendingDown, Star, List, Calendar, Clock } from "lucide-react"
+import Link from "next/link"
+import { UserMenu } from "@/components/user-menu"
+
+// Mock data
+const mockLists = [
+  {
+    id: 1,
+    name: "Compras da Semana",
+    items: 12,
+    completed: 8,
+    date: "2025-01-20",
+    estimatedTotal: 89.5,
+  },
+  {
+    id: 2,
+    name: "Festa de Aniversário",
+    items: 25,
+    completed: 0,
+    date: "2025-01-25",
+    estimatedTotal: 156.8,
+  },
+  {
+    id: 3,
+    name: "Produtos de Limpeza",
+    items: 8,
+    completed: 8,
+    date: "2025-01-18",
+    estimatedTotal: 45.2,
+  },
+]
+
+const mockRecentProducts = [
+  { name: "Arroz Tio João 5kg", price: 18.9, market: "Extra", date: "Hoje" },
+  { name: "Leite Integral 1L", price: 4.5, market: "Pão de Açúcar", date: "Ontem" },
+  { name: "Frango Kg", price: 12.8, market: "Carrefour", date: "2 dias" },
+]
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
-  const [products, setProducts] = useState<any[]>([])
-  const [markets, setMarkets] = useState<any[]>([])
-  const [shoppingLists, setShoppingLists] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
   const router = useRouter()
+  const [activeLists, setActiveLists] = useState([])
+  const [historyLists, setHistoryLists] = useState([])
 
   useEffect(() => {
-    // Check if user is logged in
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      setUser(JSON.parse(userData))
-    } else {
-      router.push('/login')
+    const userData = localStorage.getItem("user")
+    if (!userData) {
+      router.push("/login")
       return
     }
+    setUser(JSON.parse(userData))
 
-    // Load data from APIs
-    const loadData = async () => {
-      try {
-        setLoading(true)
-        const [productsRes, marketsRes, listsRes] = await Promise.all([
-          fetch('/api/product'),
-          fetch('/api/market'),
-          fetch('/api/shopping_list')
-        ])
-        
-        const productsData = await productsRes.json()
-        const marketsData = await marketsRes.json()
-        const listsData = await listsRes.json()
-        
-        setProducts(productsData)
-        setMarkets(marketsData)
-        setShoppingLists(listsData)
-      } catch (error) {
-        console.error('Error loading data:', error)
-      } finally {
-        setLoading(false)
-      }
+    // Load saved lists
+    try {
+      const savedLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
+      // Separate active and history lists
+      const active = savedLists.filter((list) => list.status === "active")
+      const history = savedLists.filter((list) => list.status !== "active")
+
+      setActiveLists(active)
+      setHistoryLists(history)
+    } catch (error) {
+      console.error("Error parsing saved lists from localStorage:", error)
+      setActiveLists([])
+      setHistoryLists([])
     }
-
-    loadData()
   }, [router])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <h2 className="text-xl font-semibold text-gray-900">Carregando dados...</h2>
-          <p className="text-gray-600">Buscando informações do banco de dados</p>
-        </div>
-      </div>
-    )
+  const handleLogout = () => {
+    localStorage.removeItem("user")
+    router.push("/")
+  }
+
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      router.push(`/dashboard/buscar?q=${encodeURIComponent(searchTerm)}`)
+    }
+  }
+
+  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch()
+    }
   }
 
   if (!user) {
-    return null
+    return <div>Carregando...</div>
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+      {/* Header */}
+      <header className="bg-white border-b sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Olá, {user.name}! 👋
-              </h1>
-              <p className="text-gray-600">
-                Bem-vindo ao EconoMarket - Sistema integrado com banco de dados real!
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Usuário logado:</p>
-              <p className="font-semibold text-gray-900">{user.email}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-gray-900">{products.length}</p>
-                <p className="text-sm text-gray-600">Produtos no Sistema</p>
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard" className="flex items-center gap-2">
+                <ShoppingCart className="h-8 w-8 text-green-600" />
+                <span className="text-2xl font-bold text-gray-900">EconoMarket</span>
+              </Link>
+              <div className="relative max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Buscar produtos..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={handleSearchKeyPress}
+                  className="pl-10 w-80"
+                />
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 8h1m-1-4h1m4 4h1m-1-4h1" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-gray-900">{markets.length}</p>
-                <p className="text-sm text-gray-600">Mercados Cadastrados</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <svg className="h-6 w-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-2xl font-bold text-gray-900">{shoppingLists.length}</p>
-                <p className="text-sm text-gray-600">Listas de Compras</p>
-              </div>
+            <div className="flex items-center gap-4">
+              <UserMenu user={user} />
             </div>
           </div>
         </div>
+      </header>
 
-        {/* Integration Demo */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Products Section */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              📦 Produtos Carregados do Banco
-            </h3>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {products.slice(0, 5).map((product) => (
-                <div key={product.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{product.name}</h4>
-                      <p className="text-sm text-gray-600">{product.brand} • {product.category}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Atualizado: {new Date(product.lastUpdate).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-lg font-bold text-green-600">
-                        R$ {product.avgPrice.toFixed(2)}
-                      </p>
-                    </div>
+      <div className="container mx-auto px-4 py-8">
+        {/* Welcome Section */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Olá, {user.name.split(" ")[0]}! 👋</h1>
+          <p className="text-gray-600">Pronto para economizar nas suas compras hoje?</p>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-100 rounded-lg">
+                  <List className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">3</p>
+                  <p className="text-sm text-gray-600">Listas Ativas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-blue-100 rounded-lg">
+                  <TrendingDown className="h-6 w-6 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">R$ 45</p>
+                  <p className="text-sm text-gray-600">Economia este mês</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-purple-100 rounded-lg">
+                  <Star className="h-6 w-6 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">247</p>
+                  <p className="text-sm text-gray-600">Pontos Acumulados</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-orange-100 rounded-lg">
+                  <MapPin className="h-6 w-6 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">5</p>
+                  <p className="text-sm text-gray-600">Mercados próximos</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="mb-6">
+          <Card className="bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-purple-600">247</p>
+                    <p className="text-xs text-purple-700">Pontos</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-purple-600">15</p>
+                    <p className="text-xs text-purple-700">Preços</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-purple-600">8</p>
+                    <p className="text-xs text-purple-700">Avaliações</p>
                   </div>
                 </div>
-              ))}
-            </div>
-            <p className="text-sm text-gray-500 mt-4 text-center">
-              Mostrando {Math.min(5, products.length)} de {products.length} produtos
-            </p>
-          </div>
+                <Link href="/dashboard/perfil">
+                  <Button variant="outline" size="sm" className="border-purple-300 text-purple-700">
+                    Ver Perfil
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-          {/* Markets Section */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              🏪 Mercados Cadastrados
-            </h3>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {markets.map((market) => (
-                <div key={market.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{market.name}</h4>
-                      <p className="text-sm text-gray-600">{market.address}</p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Distância: {market.distance}km
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="flex items-center">
-                        <span className="text-yellow-500 mr-1">⭐</span>
-                        <span className="text-sm font-medium">{market.rating}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Listas de Compras */}
+          <div className="lg:col-span-2">
+            {/* Active Lists */}
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">Suas Listas</h2>
+              <Link href="/dashboard/nova-lista">
+                <Button className="bg-green-600 hover:bg-green-700">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Lista
+                </Button>
+              </Link>
+            </div>
+
+            <div className="space-y-4">
+              {activeLists.map((list) => (
+                <Link key={list.id} href={`/dashboard/lista/${list.id}`}>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-gray-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-lg">{list.name}</h3>
+                            {list.completed === list.items && (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                Concluída
+                              </Badge>
+                            )}
+                            {list.actualTotal && (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                Salva
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span>
+                              {list.completed}/{list.items} itens
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-4 w-4" />
+                              {new Date(list.date).toLocaleDateString("pt-BR")}
+                            </span>
+                          </div>
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-600">
+                              {list.items} itens • Criada em {new Date(list.date).toLocaleDateString("pt-BR")}
+                            </p>
+                            {list.actualTotal && (
+                              <p className="text-sm text-green-600 font-medium">
+                                Economia: R$ {(list.estimatedTotal - list.actualTotal).toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-lg font-bold text-green-600">
+                            R$ {(list.actualTotal || list.estimatedTotal).toFixed(2)}
+                          </p>
+                          <p className="text-sm text-gray-600">{list.actualTotal ? "gasto real" : "estimado"}</p>
+                          {list.completed === list.items && !list.actualTotal && (
+                            <Link href="/dashboard/lista-finalizada">
+                              <Button size="sm" className="mt-2 bg-green-600 hover:bg-green-700">
+                                Ver Mercados
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+              {activeLists.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista ativa no momento.</p>
+              )}
+            </div>
+
+            {/* History Lists */}
+            <div className="flex items-center justify-between mb-6 mt-12">
+              <h2 className="text-2xl font-bold text-gray-900">Histórico de Listas</h2>
+              <Link href="/dashboard/historico">
+                <Button variant="outline">Ver Histórico Completo</Button>
+              </Link>
+            </div>
+
+            <div className="space-y-4">
+              {historyLists.slice(0, 3).map((list) => (
+                <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-lg">{list.name}</h3>
+                          <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                            {list.status === "completed" ? "Finalizada" : "Modificada"}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {new Date(list.date).toLocaleDateString("pt-BR")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="text-lg font-bold text-gray-600">
+                          R$ {list.actualTotal ? list.actualTotal.toFixed(2) : list.estimatedTotal.toFixed(2)}
+                        </p>
+                        <p className="text-sm text-gray-600">gasto real</p>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
+              {historyLists.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">Nenhuma atividade recente.</p>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Shopping Lists Section */}
-        {shoppingLists.length > 0 && (
-          <div className="bg-white rounded-lg shadow-sm p-6 mt-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              📋 Listas de Compras Recentes
-            </h3>
-            <div className="space-y-3">
-              {shoppingLists.slice(0, 3).map((list) => (
-                <div key={list.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex justify-between items-start">
+          {/* Sidebar */}
+          <div className="space-y-6">
+            {/* Preços Recentes */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Preços Recentes</CardTitle>
+                <CardDescription>Últimos preços coletados pela comunidade</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {mockRecentProducts.map((product, index) => (
+                  <div key={index} className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">{list.name}</h4>
-                      <p className="text-sm text-gray-600">
-                        Criado por: {list.user?.name || 'Usuário desconhecido'}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {new Date(list.createdAt).toLocaleDateString('pt-BR')}
+                      <p className="font-medium text-sm">{product.name}</p>
+                      <p className="text-xs text-gray-600">
+                        {product.market} • {product.date}
                       </p>
                     </div>
-                    <div className="text-right">
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        list.status === 'active' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {list.status === 'active' ? 'Ativa' : 'Concluída'}
-                      </span>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {list.items?.length || 0} itens
-                      </p>
-                    </div>
+                    <p className="font-bold text-green-600">R$ {product.price}</p>
                   </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+                ))}
+              </CardContent>
+            </Card>
 
-        {/* Integration Success Message */}
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6 mt-8">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-green-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-green-800">
-                ✅ Integração Frontend-Backend Concluída com Sucesso!
-              </h3>
-              <div className="mt-2 text-sm text-green-700">
-                <p>
-                  • Todas as APIs estão funcionando corretamente<br/>
-                  • Dados sendo carregados em tempo real do banco de dados<br/>
-                  • Sistema de autenticação implementado<br/>
-                  • Context API configurado para gerenciamento de estado<br/>
-                  • Prisma ORM integrado com SQLite
+            {/* Ações Rápidas */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Ações Rápidas</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Link href="/dashboard/nova-lista">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar Nova Lista
+                  </Button>
+                </Link>
+                <Link href="/dashboard/sugerir-produto">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Sugerir Produto
+                  </Button>
+                </Link>
+                <Link href="/dashboard/mercados">
+                  <Button variant="outline" className="w-full justify-start">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    Encontrar Mercados
+                  </Button>
+                </Link>
+                <Link href="/dashboard/buscar">
+                  <Button variant="outline" className="w-full justify-start">
+                    <Search className="h-4 w-4 mr-2" />
+                    Buscar Produtos
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Histórico de Listas */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Histórico de Listas</CardTitle>
+                <CardDescription>Suas últimas listas salvas</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {mockLists
+                  .filter((list) => list.actualTotal)
+                  .slice(0, 3)
+                  .map((list) => (
+                    <div key={list.id} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{list.name}</p>
+                        <p className="text-xs text-gray-600">
+                          {list.items} itens • {new Date(list.date).toLocaleDateString("pt-BR")}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-green-600 text-sm">R$ {list.actualTotal.toFixed(2)}</p>
+                        <p className="text-xs text-gray-600">
+                          -{(((list.estimatedTotal - list.actualTotal) / list.estimatedTotal) * 100).toFixed(0)}%
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                {mockLists.filter((list) => list.actualTotal).length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista salva ainda</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Dica do Dia */}
+            <Card className="bg-gradient-to-r from-green-50 to-blue-50 border-green-200">
+              <CardHeader>
+                <CardTitle className="text-lg text-green-800">💡 Dica do Dia</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-green-700">
+                  Compare preços antes de sair de casa! Use nossa busca para encontrar os melhores preços nos mercados
+                  próximos.
                 </p>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

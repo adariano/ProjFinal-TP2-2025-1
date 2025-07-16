@@ -145,7 +145,7 @@ const mockMarkets = [
 ]
 
 // Mock user history data
-const mockUserHistory = {
+const mockUserHistory: { [key: number]: number[] } = {
   1: [18.5, 17.9, 19.2], // Arroz
   2: [7.2, 6.8, 7.5], // Feijão
   3: [4.2, 4.5, 4.1], // Leite
@@ -156,10 +156,12 @@ export default function NovaListaPage() {
   const [listName, setListName] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedItems, setSelectedItems] = useState<any[]>([])
-  const [filteredProducts, setFilteredProducts] = useState(mockProducts)
+  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
+  const [allProducts, setAllProducts] = useState<any[]>([])
   const [collectDialogOpen, setCollectDialogOpen] = useState(false)
   const [selectedItemForCollection, setSelectedItemForCollection] = useState<any>(null)
   const [showReviews, setShowReviews] = useState<number | null>(null)
+  const [productsLoading, setProductsLoading] = useState(true)
 
   // New states for advanced features
   const [priceEstimates, setPriceEstimates] = useState<any>({})
@@ -183,18 +185,52 @@ export default function NovaListaPage() {
     setUser(JSON.parse(userData))
   }, [router])
 
+  // Load products from API
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const response = await fetch('/api/product')
+        if (response.ok) {
+          const products = await response.json()
+          // Transform API data to match the expected format
+          const transformedProducts = products.map((product: any) => ({
+            ...product,
+            bestPrice: product.avgPrice * 0.9, // Simulate best price
+            bestMarket: "Atacadão", // Default best market
+          }))
+          setAllProducts(transformedProducts)
+          setFilteredProducts(transformedProducts)
+        } else {
+          console.error('Failed to load products')
+          // Fallback to mock data
+          setAllProducts(mockProducts)
+          setFilteredProducts(mockProducts)
+        }
+      } catch (error) {
+        console.error('Error loading products:', error)
+        // Fallback to mock data
+        setAllProducts(mockProducts)
+        setFilteredProducts(mockProducts)
+      } finally {
+        setProductsLoading(false)
+      }
+    }
+
+    loadProducts()
+  }, [])
+
   useEffect(() => {
     if (searchTerm) {
-      const filtered = mockProducts.filter(
+      const filtered = allProducts.filter(
         (product) =>
           product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           product.category.toLowerCase().includes(searchTerm.toLowerCase()),
       )
       setFilteredProducts(filtered)
     } else {
-      setFilteredProducts(mockProducts)
+      setFilteredProducts(allProducts)
     }
-  }, [searchTerm])
+  }, [searchTerm, allProducts])
 
   useEffect(() => {
     if (userLocation && selectedItems.length > 0) {
@@ -230,11 +266,11 @@ export default function NovaListaPage() {
 
   const calculateMarketTotal = (marketId: number) => {
     // Simulate market-specific pricing
-    const priceMultipliers = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
+    const priceMultipliers: { [key: number]: number } = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
     const multiplier = priceMultipliers[marketId] || 1.0
 
     return selectedItems.reduce((total, item) => {
-      const estimate = priceEstimates[item.id]?.estimated || item.avgPrice
+      const estimate = (priceEstimates as any)[item.id]?.estimated || item.avgPrice
       return total + estimate * item.quantity * multiplier
     }, 0)
   }
@@ -260,7 +296,7 @@ export default function NovaListaPage() {
   }
 
   const calculatePriceEstimates = () => {
-    const estimates = {}
+    const estimates: { [key: number]: any } = {}
     selectedItems.forEach((item) => {
       const userHistoryPrice = getUserHistoryPrice(item.id)
       const communityAvgPrice = getCommunityAveragePrice(item.id)
@@ -413,7 +449,7 @@ export default function NovaListaPage() {
 
     try {
       // Calculate estimates first
-      const estimates = {}
+      const estimates: { [key: number]: any } = {}
       selectedItems.forEach((item) => {
         const userHistoryPrice = getUserHistoryPrice(item.id)
         const communityAvgPrice = getCommunityAveragePrice(item.id)
@@ -458,7 +494,7 @@ export default function NovaListaPage() {
         ...market,
         estimatedTotal: selectedItems.reduce((total, item) => {
           const estimate = estimates[item.id]?.estimated || item.avgPrice
-          const priceMultipliers = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
+          const priceMultipliers: { [key: number]: number } = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
           const multiplier = priceMultipliers[market.id] || 1.0
           return total + estimate * item.quantity * multiplier
         }, 0),
@@ -473,72 +509,53 @@ export default function NovaListaPage() {
 
       setRecommendedMarkets(sortedMarkets)
 
-      // Check for duplicate lists
-      const existingLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-      const isDuplicate = existingLists.some((existingList: any) => {
-        return (
-          existingList.name === listName.trim() &&
-          existingList.items === selectedItems.length &&
-          JSON.stringify(existingList.listItems.map((item) => ({ id: item.id, quantity: item.quantity }))) ===
-            JSON.stringify(selectedItems.map((item) => ({ id: item.id, quantity: item.quantity })))
-        )
+      // Save to database using API
+      const response = await fetch('/api/shopping_list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: listName.trim(),
+          userId: user.id,
+        }),
       })
 
-      if (isDuplicate) {
-        const overwrite = confirm(
-          `Já existe uma lista com o nome "${listName}" e os mesmos itens. Deseja sobrescrever?`,
-        )
-        if (!overwrite) {
-          setIsSaving(false)
-          return
+      if (!response.ok) {
+        throw new Error('Erro ao salvar lista no servidor')
+      }
+
+      const savedList = await response.json()
+
+      // Add items to the saved list
+      for (const item of selectedItems) {
+        const itemResponse = await fetch('/api/shopping_list_item', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shoppingListId: savedList.id,
+            productId: item.id,
+            quantity: item.quantity,
+          }),
+        })
+
+        if (!itemResponse.ok) {
+          console.error('Erro ao adicionar item à lista:', item.name)
         }
-        // Remove the duplicate
-        const filteredLists = existingLists.filter(
-          (existingList: any) =>
-            !(existingList.name === listName.trim() && existingList.items === selectedItems.length),
-        )
-        localStorage.setItem("savedLists", JSON.stringify(filteredLists))
       }
 
-      // Create the saved list object
-      const savedList = {
-        id: Date.now(),
-        name: listName.trim(),
-        items: selectedItems.length,
-        completed: getCollectedCount(),
-        date: new Date().toISOString().split("T")[0],
-        estimatedTotal: getTotalEstimated(),
-        actualTotal: getTotalActual(),
-        listItems: selectedItems,
-        priceEstimates: estimates,
-        recommendedMarkets: sortedMarkets,
-        status: getCollectedCount() === selectedItems.length ? "completed" : "active",
-        createdAt: new Date().toISOString(),
-      }
-
-      // Save to localStorage
-      const updatedLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-      updatedLists.push(savedList)
-      localStorage.setItem("savedLists", JSON.stringify(updatedLists))
-
-      // Add to history
-      const historyEntry = {
-        id: Date.now() + 1,
-        listName: listName.trim(),
-        action: "created",
-        date: new Date().toISOString().split("T")[0],
-        timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        details: `Lista criada com ${selectedItems.length} itens`,
-        itemCount: selectedItems.length,
-        totalEstimated: getTotalEstimated(),
-      }
-
-      const existingHistory = JSON.parse(localStorage.getItem("listHistory") || "[]")
-      existingHistory.unshift(historyEntry)
-      localStorage.setItem("listHistory", JSON.stringify(existingHistory))
-
+      // Show success message
+      alert(`Lista "${listName}" salva com sucesso!`)
+      
       // Show recommendation dialog
       setShowRecommendationDialog(true)
+      
+      // Reset form
+      setListName("")
+      setSelectedItems([])
+      
     } catch (error) {
       console.error("Error saving list:", error)
       alert("Erro ao salvar a lista. Tente novamente.")
@@ -708,64 +725,77 @@ export default function NovaListaPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                    {filteredProducts.map((product) => (
-                      <div key={product.id} className="space-y-3">
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <Package className="h-4 w-4 text-gray-400" />
-                              <h3 className="font-medium text-sm">{product.name}</h3>
-                            </div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <Badge variant="secondary" className="text-xs">
-                                {product.category}
-                              </Badge>
-                              <span className="text-xs text-gray-500">Atualizado {product.lastUpdate}</span>
-                            </div>
-                            <div className="flex items-center gap-1 text-xs text-green-600">
-                              <MapPin className="h-3 w-3" />
-                              <span>Melhor preço: {product.bestMarket || "Atacadão"}</span>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setShowReviews(showReviews === product.id ? null : product.id)}
-                              className="mt-1 p-0 h-auto text-xs text-blue-600 hover:text-blue-800"
-                            >
-                              <Star className="h-3 w-3 mr-1" />
-                              Ver avaliações
-                            </Button>
-                          </div>
-                          <div className="text-right ml-4">
-                            <p className="font-bold text-green-600">
-                              R$ {product.bestPrice || (product.avgPrice * 0.9).toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-500 line-through">R$ {product.avgPrice}</p>
-                            <p className="text-xs text-green-600">
-                              Economia: R${" "}
-                              {(product.avgPrice - (product.bestPrice || product.avgPrice * 0.9)).toFixed(2)}
-                            </p>
-                            <Button size="sm" className="mt-1" onClick={() => addItem(product)}>
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* Avaliações Compactas */}
-                        {showReviews === product.id && (
-                          <div className="ml-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-200">
-                            <ProductReviews productId={product.id} compact={true} />
-                          </div>
-                        )}
+                    {productsLoading ? (
+                      <div className="col-span-full text-center py-8 text-gray-500">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+                        <p>Carregando produtos...</p>
                       </div>
-                    ))}
+                    ) : (
+                      filteredProducts.map((product) => (
+                        <div key={product.id} className="space-y-3">
+                          <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Package className="h-4 w-4 text-gray-400" />
+                                <h3 className="font-medium text-sm">{product.name}</h3>
+                              </div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="secondary" className="text-xs">
+                                  {product.category}
+                                </Badge>
+                                <span className="text-xs text-gray-500">Atualizado {product.lastUpdate}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-green-600">
+                                <MapPin className="h-3 w-3" />
+                                <span>Melhor preço: {product.bestMarket || "Atacadão"}</span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setShowReviews(showReviews === product.id ? null : product.id)}
+                                className="mt-1 p-0 h-auto text-xs text-blue-600 hover:text-blue-800"
+                              >
+                                <Star className="h-3 w-3 mr-1" />
+                                Ver avaliações
+                              </Button>
+                            </div>
+                            <div className="text-right ml-4">
+                              <p className="font-bold text-green-600">
+                                R$ {product.bestPrice || (product.avgPrice * 0.9).toFixed(2)}
+                              </p>
+                              <p className="text-xs text-gray-500 line-through">R$ {product.avgPrice}</p>
+                              <p className="text-xs text-green-600">
+                                Economia: R${" "}
+                                {(product.avgPrice - (product.bestPrice || product.avgPrice * 0.9)).toFixed(2)}
+                              </p>
+                              <Button size="sm" className="mt-1" onClick={() => addItem(product)}>
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Avaliações Compactas */}
+                          {showReviews === product.id && (
+                            <div className="ml-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-200">
+                              <ProductReviews productId={product.id} compact={true} />
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
                   </div>
 
-                  {filteredProducts.length === 0 && (
+                  {!productsLoading && filteredProducts.length === 0 && (
                     <div className="text-center py-8 text-gray-500">
                       <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Nenhum produto encontrado</p>
-                      <p className="text-sm">Tente buscar com outros termos</p>
+                      <p>
+                        {searchTerm
+                          ? `Nenhum produto encontrado para "${searchTerm}"`
+                          : "Nenhum produto disponível no momento"}
+                      </p>
+                      <p className="text-sm">
+                        {searchTerm ? "Tente buscar com outros termos" : "Verifique sua conexão ou tente novamente"}
+                      </p>
                     </div>
                   )}
                 </div>
