@@ -242,7 +242,7 @@ export default function NovaListaPage() {
   const getUserHistoryPrice = (productId: number) => {
     const history = mockUserHistory[productId]
     if (!history || history.length === 0) return null
-    return history.reduce((sum, price) => sum + price, 0) / history.length
+    return history.reduce((sum: number, price: number) => sum + price, 0) / history.length
   }
 
   const getCommunityAveragePrice = (productId: number) => {
@@ -686,7 +686,7 @@ export default function NovaListaPage() {
                           {Object.entries(priceEstimates)
                             .reduce((sum, [itemId, est]) => {
                               const item = selectedItems.find((i) => i.id === Number.parseInt(itemId))
-                              return sum + est.estimated * (item?.quantity || 1)
+                              return sum + (est as any).estimated * (item?.quantity || 1)
                             }, 0)
                             .toFixed(2)}
                         </span>
@@ -697,7 +697,7 @@ export default function NovaListaPage() {
                           getTotalEstimated() -
                           Object.entries(priceEstimates).reduce((sum, [itemId, est]) => {
                             const item = selectedItems.find((i) => i.id === Number.parseInt(itemId))
-                            return sum + est.estimated * (item?.quantity || 1)
+                            return sum + (est as any).estimated * (item?.quantity || 1)
                           }, 0)
                         ).toFixed(2)}
                       </p>
@@ -777,7 +777,7 @@ export default function NovaListaPage() {
                           {/* Avaliações Compactas */}
                           {showReviews === product.id && (
                             <div className="ml-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-200">
-                              <ProductReviews productId={product.id} compact={true} />
+                              <ProductReviews productId={product.id} productName={product.name} compact={true} />
                             </div>
                           )}
                         </div>
@@ -923,7 +923,7 @@ export default function NovaListaPage() {
                               {Object.entries(priceEstimates)
                                 .reduce((sum, [itemId, est]) => {
                                   const item = selectedItems.find((i) => i.id === Number.parseInt(itemId))
-                                  return sum + est.estimated * (item?.quantity || 1)
+                                  return sum + (est as any).estimated * (item?.quantity || 1)
                                 }, 0)
                                 .toFixed(2)}
                             </span>
@@ -993,7 +993,7 @@ export default function NovaListaPage() {
         recommendedMarkets={recommendedMarkets}
         totalEstimated={Object.entries(priceEstimates).reduce((sum, [itemId, est]) => {
           const item = selectedItems.find((i) => i.id === Number.parseInt(itemId))
-          return sum + est.estimated * (item?.quantity || 1)
+          return sum + (est as any).estimated * (item?.quantity || 1)
         }, 0)}
         onNavigate={handleNavigateToMarket}
       />
