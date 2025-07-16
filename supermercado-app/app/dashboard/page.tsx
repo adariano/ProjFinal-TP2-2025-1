@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { ShoppingCart, Plus, Search, MapPin, TrendingDown, Star, List, Calendar, Clock } from "lucide-react"
 import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
+import { sortMarketsByDistance } from "@/lib/location-utils"
 
 // Mock data
 const mockLists = [

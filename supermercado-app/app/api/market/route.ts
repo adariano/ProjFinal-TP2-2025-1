@@ -15,7 +15,9 @@ export async function POST(request: Request) {
     googleMapsUrl, 
     priceLevel, 
     categories, 
-    description 
+    description,
+    latitude,
+    longitude
   } = data
 
   if (!name || !address || !phone || !googleMapsUrl) {
@@ -36,6 +38,8 @@ export async function POST(request: Request) {
     if (priceLevel) marketData.priceLevel = priceLevel
     if (categories) marketData.categories = categories
     if (description) marketData.description = description
+    if (latitude) marketData.latitude = latitude
+    if (longitude) marketData.longitude = longitude
 
     const market = await prisma.market.create({
       data: marketData,
@@ -76,7 +80,9 @@ export async function PUT(request: Request) {
     googleMapsUrl, 
     priceLevel, 
     categories, 
-    description 
+    description,
+    latitude,
+    longitude
   } = data
 
   if (!id || !name || !address) {
@@ -97,6 +103,8 @@ export async function PUT(request: Request) {
     if (priceLevel) marketData.priceLevel = priceLevel
     if (categories) marketData.categories = categories
     if (description) marketData.description = description
+    if (latitude) marketData.latitude = latitude
+    if (longitude) marketData.longitude = longitude
 
     const market = await prisma.market.update({
       where: { id: Number(id) },

@@ -26,6 +26,11 @@ import { UserMenu } from "@/components/user-menu"
 import { AddMarketDialog } from "@/components/add-market-dialog"
 import { RateMarketDialog } from "@/components/rate-market-dialog"
 import { EditMarketDialog } from "@/components/edit-market-dialog"
+import { 
+  sortMarketsByDistance, 
+  reverseGeocode, 
+  geocodeAddress 
+} from "@/lib/location-utils"
 
 // Mock data for markets
 const mockMarkets = [
