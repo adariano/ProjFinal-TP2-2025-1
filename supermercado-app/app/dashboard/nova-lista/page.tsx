@@ -27,6 +27,8 @@ import Link from "next/link"
 import { CollectItemDialog } from "@/components/collect-item-dialog"
 import { ProductReviews } from "@/components/product-reviews"
 import { MarketRecommendationDialog } from "@/components/market-recommendation-dialog"
+import { useLocation } from "@/hooks/use-location"
+import { calculateDistance } from "@/lib/location-utils"
 
 // Mock products database
 const mockProducts = [
@@ -167,12 +169,20 @@ export default function NovaListaPage() {
   const [priceEstimates, setPriceEstimates] = useState<any>({})
   const [showEstimates, setShowEstimates] = useState(false)
   const [recommendedMarkets, setRecommendedMarkets] = useState<any[]>([])
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [sortBy, setSortBy] = useState("price")
   const [maxDistance, setMaxDistance] = useState(10)
-  const [gpsLoading, setGpsLoading] = useState(false)
   const [showRecommendationDialog, setShowRecommendationDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+
+  // Use location hook
+  const { 
+    userLocation, 
+    isLoadingLocation, 
+    locationError, 
+    getCurrentLocation, 
+    nearbyMarkets, 
+    isLoadingMarkets 
+  } = useLocation()
 
   const router = useRouter()
 
@@ -313,15 +323,38 @@ export default function NovaListaPage() {
     setShowEstimates(true)
   }
 
-  const getMarketRecommendations = () => {
-    const markets = mockMarkets.map((market) => ({
-      ...market,
-      estimatedTotal: calculateMarketTotal(market.id),
-      distance: userLocation ? calculateDistance(userLocation, market.coordinates) : Math.random() * 5 + 1,
-    }))
+  const getMarketRecommendations = async () => {
+    try {
+      // Use nearby markets from the location hook if available
+      let markets = nearbyMarkets.length > 0 ? nearbyMarkets : mockMarkets
 
-    const sorted = sortMarkets(markets, sortBy, maxDistance)
-    setRecommendedMarkets(sorted)
+      // If we have user location, calculate distances for mock markets
+      if (userLocation && nearbyMarkets.length === 0) {
+        markets = mockMarkets.map((market) => ({
+          ...market,
+          distance: calculateDistance(userLocation, market.coordinates),
+        }))
+      }
+
+      // Calculate estimated totals for each market
+      const marketsWithTotals = markets.map((market) => ({
+        ...market,
+        estimatedTotal: calculateMarketTotal(market.id),
+        distance: market.distance || (userLocation ? calculateDistance(userLocation, market.coordinates) : Math.random() * 5 + 1),
+      }))
+
+      const sorted = sortMarkets(marketsWithTotals, sortBy, maxDistance)
+      setRecommendedMarkets(sorted)
+    } catch (error) {
+      console.error('Error getting market recommendations:', error)
+      // Fallback to mock markets
+      const fallbackMarkets = mockMarkets.map((market) => ({
+        ...market,
+        estimatedTotal: calculateMarketTotal(market.id),
+        distance: Math.random() * 5 + 1,
+      }))
+      setRecommendedMarkets(fallbackMarkets)
+    }
   }
 
   const getCurrentLocation = () => {
@@ -466,31 +499,25 @@ export default function NovaListaPage() {
 
       // Get location and calculate market recommendations
       let location = userLocation
-      let markets = []
 
       if (!location) {
-        // Try to get GPS location
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-            } else {
-              reject(new Error("Geolocation not supported"))
-            }
-          })
+        // Try to get GPS location using the hook
+        getCurrentLocation()
+        location = userLocation // Will be set by the hook
+      }
 
-          location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          }
-          setUserLocation(location)
-        } catch (error) {
-          console.log("GPS not available, using fallback")
-        }
+      // Calculate market recommendations using nearby markets if available
+      let markets = nearbyMarkets.length > 0 ? nearbyMarkets : mockMarkets
+
+      if (location && nearbyMarkets.length === 0) {
+        markets = mockMarkets.map((market) => ({
+          ...market,
+          distance: calculateDistance(location, market.coordinates),
+        }))
       }
 
       // Calculate market recommendations
-      markets = mockMarkets.map((market) => ({
+      const marketsWithTotals = markets.map((market) => ({
         ...market,
         estimatedTotal: selectedItems.reduce((total, item) => {
           const estimate = estimates[item.id]?.estimated || item.avgPrice
@@ -498,10 +525,10 @@ export default function NovaListaPage() {
           const multiplier = priceMultipliers[market.id] || 1.0
           return total + estimate * item.quantity * multiplier
         }, 0),
-        distance: location ? calculateDistance(location, market.coordinates) : Math.random() * 5 + 1,
+        distance: market.distance || (location ? calculateDistance(location, market.coordinates) : Math.random() * 5 + 1),
       }))
 
-      const sortedMarkets = markets.sort((a, b) => {
+      const sortedMarkets = marketsWithTotals.sort((a, b) => {
         const scoreA = (a.estimatedTotal / 100) * 0.6 + a.distance * 0.4
         const scoreB = (b.estimatedTotal / 100) * 0.6 + b.distance * 0.4
         return scoreA - scoreB

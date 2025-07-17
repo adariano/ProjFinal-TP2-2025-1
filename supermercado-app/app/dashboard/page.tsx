@@ -8,10 +8,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Plus, Search, MapPin, TrendingDown, Star, List, Calendar, Clock } from "lucide-react"
+import { ShoppingCart, Plus, Search, MapPin, TrendingDown, Star, List, Calendar, Clock, Navigation } from "lucide-react"
 import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
-import { sortMarketsByDistance } from "@/lib/location-utils"
+import { useLocation } from "@/hooks/use-location"
 
 // Mock data
 const mockLists = [
@@ -53,6 +53,14 @@ export default function DashboardPage() {
   const router = useRouter()
   const [activeLists, setActiveLists] = useState([])
   const [historyLists, setHistoryLists] = useState([])
+  const { 
+    userLocation, 
+    isLoadingLocation, 
+    locationError, 
+    getCurrentLocation, 
+    nearbyMarkets, 
+    isLoadingMarkets 
+  } = useLocation()
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -186,8 +194,19 @@ export default function DashboardPage() {
                   <MapPin className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">5</p>
+                  <p className="text-2xl font-bold">
+                    {isLoadingMarkets ? "..." : nearbyMarkets.length}
+                  </p>
                   <p className="text-sm text-gray-600">Mercados próximos</p>
+                  {!userLocation && (
+                    <button
+                      onClick={getCurrentLocation}
+                      disabled={isLoadingLocation}
+                      className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                    >
+                      {isLoadingLocation ? "Obtendo localização..." : "Obter localização"}
+                    </button>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -371,12 +390,6 @@ export default function DashboardPage() {
                 <CardTitle className="text-lg">Ações Rápidas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Link href="/dashboard/nova-lista">
-                  <Button variant="outline" className="w-full justify-start">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Criar Nova Lista
-                  </Button>
-                </Link>
                 <Link href="/dashboard/sugerir-produto">
                   <Button variant="outline" className="w-full justify-start">
                     <Plus className="h-4 w-4 mr-2" />
@@ -397,6 +410,41 @@ export default function DashboardPage() {
                 </Link>
               </CardContent>
             </Card>
+
+            {/* Mercados Próximos */}
+            {nearbyMarkets.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Mercados Próximos</CardTitle>
+                  <CardDescription>Mercados encontrados na sua região</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {nearbyMarkets.slice(0, 5).map((market, index) => (
+                    <div key={market.id} className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-medium text-sm">{market.name}</p>
+                        <p className="text-xs text-gray-600">
+                          {market.distance}km • {market.estimatedTime}
+                        </p>
+                      </div>
+                      <Link href={`/dashboard/mercados?id=${market.id}`}>
+                        <Button variant="outline" size="sm">
+                          <Navigation className="h-3 w-3 mr-1" />
+                          Ver
+                        </Button>
+                      </Link>
+                    </div>
+                  ))}
+                  {nearbyMarkets.length > 5 && (
+                    <Link href="/dashboard/mercados">
+                      <Button variant="outline" className="w-full justify-center text-xs">
+                        Ver todos os {nearbyMarkets.length} mercados
+                      </Button>
+                    </Link>
+                  )}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Histórico de Listas */}
             <Card>

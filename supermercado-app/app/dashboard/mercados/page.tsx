@@ -26,6 +26,7 @@ import { UserMenu } from "@/components/user-menu"
 import { AddMarketDialog } from "@/components/add-market-dialog"
 import { RateMarketDialog } from "@/components/rate-market-dialog"
 import { EditMarketDialog } from "@/components/edit-market-dialog"
+import { useLocation } from "@/hooks/use-location"
 import { 
   sortMarketsByDistance, 
   reverseGeocode, 
@@ -109,16 +110,25 @@ const mockMarkets = [
 export default function MercadosPage() {
   const [user, setUser] = useState<any>(null)
   const [searchAddress, setSearchAddress] = useState("")
-  const [currentLocation, setCurrentLocation] = useState<string>("")
-  const [isLoadingLocation, setIsLoadingLocation] = useState(false)
-  const [markets, setMarkets] = useState<any[]>([])
-  const [isLoadingMarkets, setIsLoadingMarkets] = useState(true)
   const [sortBy, setSortBy] = useState<"distance" | "rating" | "price">("distance")
   const [showAddMarketDialog, setShowAddMarketDialog] = useState(false)
   const [showRateMarketDialog, setShowRateMarketDialog] = useState(false)
   const [showEditMarketDialog, setShowEditMarketDialog] = useState(false)
   const [selectedMarket, setSelectedMarket] = useState<any>(null)
   const router = useRouter()
+
+  // Use the location hook
+  const { 
+    userLocation, 
+    isLoadingLocation, 
+    locationError, 
+    getCurrentLocation, 
+    nearbyMarkets, 
+    isLoadingMarkets 
+  } = useLocation()
+
+  // Use nearbyMarkets from the hook, fallback to mockMarkets for admin
+  const [markets, setMarkets] = useState<any[]>([])
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -129,82 +139,61 @@ export default function MercadosPage() {
     setUser(JSON.parse(userData))
   }, [router])
 
-  // Load markets from API
+  // Update markets based on user role and location
   useEffect(() => {
-    const loadMarkets = async () => {
-      try {
+    if (!user) return
+
+    if (user.role === 'ADMIN') {
+      // Admin sees all markets from API
+      const loadMarkets = async () => {
+        try {
+          const response = await fetch('/api/market')
+          if (response.ok) {
+            const apiMarkets = await response.json()
+            
+            // Transform API data to match expected format
+            const transformedMarkets = apiMarkets.map((market: any) => ({
+              ...market,
+              categories: market.categories ? market.categories.split(",").map((c: string) => c.trim()).filter((c: string) => c) : [],
+              reviews: market.reviews || 0,
+              estimatedTime: market.estimatedTime || "N/A",
+              coordinates: market.coordinates || { lat: 0, lng: 0 },
+            }))
+            
+            setMarkets(transformedMarkets)
+          } else {
+            console.error('Failed to load markets')
+            setMarkets(mockMarkets)
+          }
+        } catch (error) {
+          console.error('Error loading markets:', error)
+          setMarkets(mockMarkets)
+        }
+      }
+      loadMarkets()
+    } else {
+      // Regular users see nearby markets from location hook
+      setMarkets(nearbyMarkets)
+    }
+  }, [user, nearbyMarkets])
+
+  const searchByAddress = async () => {
+    if (!searchAddress.trim()) return
+
+    try {
+      const coords = await geocodeAddress(searchAddress)
+      if (coords && user?.role !== 'ADMIN') {
+        // For regular users, update with markets sorted by distance from searched address
         const response = await fetch('/api/market')
         if (response.ok) {
           const apiMarkets = await response.json()
-          
-          // Transform API data to match expected format
-          const transformedMarkets = apiMarkets.map((market: any) => ({
-            ...market,
-            categories: market.categories ? market.categories.split(",").map((c: string) => c.trim()).filter((c: string) => c) : [],
-            reviews: market.reviews || 0,
-            estimatedTime: market.estimatedTime || "N/A",
-            coordinates: market.coordinates || { lat: 0, lng: 0 },
-          }))
-          
-          setMarkets(transformedMarkets)
-        } else {
-          console.error('Failed to load markets')
-          // Fallback to mock data
-          setMarkets(mockMarkets)
+          const sortedMarkets = sortMarketsByDistance(apiMarkets, coords.lat, coords.lng)
+          setMarkets(sortedMarkets.slice(0, 10)) // Show top 10 nearest
         }
-      } catch (error) {
-        console.error('Error loading markets:', error)
-        // Fallback to mock data
-        setMarkets(mockMarkets)
-      } finally {
-        setIsLoadingMarkets(false)
       }
+    } catch (error) {
+      console.error('Error searching by address:', error)
     }
-
-    loadMarkets()
-  }, [])
-
-  const getCurrentLocation = () => {
-    setIsLoadingLocation(true)
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords
-          // Simulate reverse geocoding
-          setCurrentLocation(`Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`)
-          setIsLoadingLocation(false)
-
-          // In a real app, you would calculate actual distances here
-          // For now, we'll just simulate updated distances
-          const updatedMarkets = mockMarkets.map((market) => ({
-            ...market,
-            distance: Math.random() * 5 + 0.5, // Random distance between 0.5-5.5km
-          }))
-          setMarkets(updatedMarkets)
-        },
-        (error) => {
-          console.error("Error getting location:", error)
-          setCurrentLocation("Erro ao obter localização")
-          setIsLoadingLocation(false)
-        },
-      )
-    } else {
-      setCurrentLocation("Geolocalização não suportada")
-      setIsLoadingLocation(false)
-    }
-  }
-
-  const searchByAddress = () => {
-    if (!searchAddress.trim()) return
-
-    // Simulate address search
-    setCurrentLocation(searchAddress)
-    const updatedMarkets = mockMarkets.map((market) => ({
-      ...market,
-      distance: Math.random() * 8 + 0.3, // Random distance for searched address
-    }))
-    setMarkets(updatedMarkets)
   }
 
   const sortMarkets = (criteria: "distance" | "rating" | "price") => {
@@ -379,10 +368,15 @@ export default function MercadosPage() {
                   {isLoadingLocation ? "Localizando..." : "Minha Localização"}
                 </Button>
               </div>
-              {currentLocation && (
+              {userLocation && (
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <MapPin className="h-4 w-4" />
-                  <span>Localização atual: {currentLocation}</span>
+                  <span>Localização atual: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}</span>
+                </div>
+              )}
+              {locationError && (
+                <div className="text-sm text-red-600">
+                  {locationError}
                 </div>
               )}
             </CardContent>
