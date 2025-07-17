@@ -36,42 +36,58 @@ export default function ListaDetalhePage() {
       router.push("/login")
       return
     }
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
 
-    // Carregar lista específica
-    const savedLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-    const foundList = savedLists.find((list: any) => list.id.toString() === listId)
-
-    if (foundList) {
-      setLista(foundList)
-    } else {
-      // Lista não encontrada, redirecionar
-      router.push("/dashboard")
+    // Load list from API
+    const fetchList = async () => {
+      try {
+        const response = await fetch(`/api/shopping_list?id=${listId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch list')
+        }
+        const list = await response.json()
+        setLista({
+          ...list,
+          items: list.items?.length || 0,
+          completed: list.items?.filter((item: any) => item.collected).length || 0,
+          date: list.createdAt,
+          actualTotal: list.items?.reduce((sum: number, item: any) => {
+            return sum + (item.collected ? item.price : 0)
+          }, 0),
+          estimatedTotal: list.items?.reduce((sum: number, item: any) => {
+            return sum + ((item.product?.avgPrice || 0) * item.quantity)
+          }, 0)
+        })
+      } catch (error) {
+        console.error("Error loading list:", error)
+        router.push("/dashboard")
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
+
+    fetchList()
   }, [listId, router])
 
-  const handleDeleteList = () => {
+  const handleDeleteList = async () => {
     if (!confirm("Tem certeza que deseja excluir esta lista?")) return
 
-    const savedLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-    const updatedLists = savedLists.filter((list: any) => list.id.toString() !== listId)
-    localStorage.setItem("savedLists", JSON.stringify(updatedLists))
+    try {
+      const response = await fetch(`/api/shopping_list?id=${listId}`, {
+        method: 'DELETE'
+      })
 
-    // Adicionar ao histórico
-    const historyEntry = {
-      id: Date.now(),
-      listName: lista.name,
-      action: "deleted",
-      date: new Date().toISOString().split("T")[0],
-      timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      details: `Lista "${lista.name}" foi excluída`,
-      itemCount: lista.items,
+      if (!response.ok) {
+        throw new Error('Failed to delete list')
+      }
+
+      // Redirect after successful deletion
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Error deleting list:", error)
+      alert("Erro ao excluir a lista. Tente novamente.")
     }
-
-    const existingHistory = JSON.parse(localStorage.getItem("listHistory") || "[]")
-    existingHistory.unshift(historyEntry)
-    localStorage.setItem("listHistory", JSON.stringify(existingHistory))
 
     alert("Lista excluída com sucesso!")
     router.push("/dashboard")
@@ -169,6 +185,66 @@ export default function ListaDetalhePage() {
       // Update local state
       setLista({ ...lista, recommendedMarkets: mockMarkets })
       setShowRecommendationDialog(true)
+    }
+  }
+
+  const handleItemCollected = async (itemId: number, actualPrice: number) => {
+    try {
+      // Update item first
+      const itemResponse = await fetch('/api/shopping_list_item', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: itemId,
+          action: 'collect'
+        }),
+      })
+
+      if (!itemResponse.ok) {
+        throw new Error('Failed to update item')
+      }
+
+      // Reload the list to get updated counts
+      const listResponse = await fetch(`/api/shopping_list?id=${listId}`)
+      if (!listResponse.ok) {
+        throw new Error('Failed to fetch updated list')
+      }
+
+      const updatedList = await listResponse.json()
+      const allCollected = updatedList.items?.every((item: any) => item.collected)
+
+      if (allCollected) {
+        // Update list status to completed
+        await fetch(`/api/shopping_list`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: listId,
+            status: 'completed'
+          }),
+        })
+      }
+
+      // Update local state
+      setLista({
+        ...updatedList,
+        items: updatedList.items?.length || 0,
+        completed: updatedList.items?.filter((item: any) => item.collected).length || 0,
+        date: updatedList.createdAt,
+        actualTotal: updatedList.items?.reduce((sum: number, item: any) => {
+          return sum + (item.collected ? item.price : 0)
+        }, 0),
+        estimatedTotal: updatedList.items?.reduce((sum: number, item: any) => {
+          return sum + ((item.product?.avgPrice || 0) * item.quantity)
+        }, 0)
+      })
+    } catch (error) {
+      console.error("Error updating item and list:", error)
+      alert("Erro ao atualizar item. Tente novamente.")
     }
   }
 

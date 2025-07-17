@@ -37,6 +37,7 @@ interface CollectItemDialogProps {
     collected?: boolean
   } | null
   onItemCollected: (id: number, actualPrice: number, method: "manual" | "image") => void
+  shoppingListId: number
 }
 
 // Mock historical data com mais detalhes
@@ -103,10 +104,11 @@ const mockHistoricalData = {
 
 export function CollectItemDialog({ open, onOpenChange, item, onItemCollected }: CollectItemDialogProps) {
   const [actualPrice, setActualPrice] = useState("")
-  const [inputMethod, setInputMethod] = useState("manual")
+  const [inputMethod, setInputMethod] = useState<"manual" | "image">("manual")
   const [isProcessing, setIsProcessing] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [currentTab, setCurrentTab] = useState("manual")
 
   if (!item) {
     return <Dialog open={open} onOpenChange={onOpenChange} />
@@ -115,18 +117,84 @@ export function CollectItemDialog({ open, onOpenChange, item, onItemCollected }:
   // valor de referência para comparações
   const estimatedPriceRef = item.estimatedPrice ?? item.avgPrice ?? 0
 
-  const handleCollect = () => {
+  const handleCollect = async () => {
     if (!actualPrice) {
       alert("Informe o preço pago pelo produto")
       return
     }
-    onItemCollected(item.id, Number.parseFloat(actualPrice), inputMethod as "manual" | "image")
 
-    setShowSuccess(true)
+    try {
+      // Update the item in the API
+      const response = await fetch('/api/shopping_list_item', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: item.id,
+          action: 'collect'
+        }),
+      })
 
-    // Reset after success
-    setTimeout(() => {
-      setActualPrice("")
+      if (!response.ok) {
+        throw new Error('Failed to update item')
+      }
+
+      // Notify parent component
+      onItemCollected(item.id, Number.parseFloat(actualPrice), inputMethod)
+      setShowSuccess(true)
+
+      // Reset after success
+      setTimeout(() => {
+        setActualPrice("")
+        setInputMethod("manual")
+        setImageFile(null)
+        setShowSuccess(false)
+        onOpenChange(false)
+      }, 2000)
+    } catch (error) {
+      console.error("Error updating item:", error)
+      alert("Erro ao atualizar item. Tente novamente.")
+    }
+  }
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      setImageFile(file)
+      setIsProcessing(true)
+      setInputMethod("image")
+
+      // Simular reconhecimento de imagem
+      setTimeout(() => {
+        const simulatedPrice = (Math.random() * 5 + 15).toFixed(2)
+        setActualPrice(simulatedPrice)
+        setIsProcessing(false)
+      }, 2000)
+    }
+  }
+
+  // Calculate price differences
+  const averageUserPrice =
+    mockHistoricalData.userHistory.length > 0
+      ? mockHistoricalData.userHistory.reduce((sum, entry) => sum + entry.price, 0) /
+        mockHistoricalData.userHistory.length
+      : 0
+
+  const priceDifference = actualPrice ? Number.parseFloat(actualPrice) - estimatedPriceRef : 0
+  const userPriceDifference = actualPrice && averageUserPrice ? Number.parseFloat(actualPrice) - averageUserPrice : 0
+
+  const getReliabilityColor = (reliability: number) => {
+    if (reliability >= 90) return "text-green-600 bg-green-100"
+    if (reliability >= 75) return "text-yellow-600 bg-yellow-100"
+    return "text-red-600 bg-red-100"
+  }
+
+  const getReliabilityText = (reliability: number) => {
+    if (reliability >= 90) return "Muito Confiável"
+    if (reliability >= 75) return "Confiável"
+    return "Pouco Confiável"
+  }
       setImageFile(null)
       setShowSuccess(false)
       onOpenChange(false)

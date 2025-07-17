@@ -20,6 +20,7 @@ model User {
   cpf            String          @unique
   password       String
   role           Role            @default(USER)
+  points         Int             @default(0)
   createdAt      DateTime        @default(now())
   shoppingLists  ShoppingList[]
 }
@@ -53,13 +54,15 @@ model Market {
 }
 
 model ShoppingList {
-  id         Int                  @id @default(autoincrement())
-  name       String
-  status     String               @default("active")
-  createdAt  DateTime             @default(now())
-  userId     Int
-  user       User                 @relation(fields: [userId], references: [id])
-  items      ShoppingListItem[]
+  id              Int                  @id @default(autoincrement())
+  name            String
+  status          String               @default("active")
+  createdAt       DateTime             @default(now())
+  userId          Int
+  estimatedTotal  Float?
+  actualTotal     Float?
+  user            User                 @relation(fields: [userId], references: [id])
+  items           ShoppingListItem[]
 }
 
 model ShoppingListItem {

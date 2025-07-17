@@ -153,30 +153,38 @@ const mockUserHistory: { [key: number]: number[] } = {
   3: [4.2, 4.5, 4.1], // Leite
 }
 
+interface ShoppingListItem {
+  id: number
+  name: string
+  quantity: number
+  avgPrice: number
+  collected?: boolean
+  actualPrice?: number
+}
+
 export default function NovaListaPage() {
   const [user, setUser] = useState<any>(null)
   const [listName, setListName] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedItems, setSelectedItems] = useState<any[]>([])
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([])
-  const [allProducts, setAllProducts] = useState<any[]>([])
+  const [selectedItems, setSelectedItems] = useState<ShoppingListItem[]>([])
+  const [filteredProducts, setFilteredProducts] = useState(mockProducts)
   const [collectDialogOpen, setCollectDialogOpen] = useState(false)
-  const [selectedItemForCollection, setSelectedItemForCollection] = useState<any>(null)
+  const [selectedItemForCollection, setSelectedItemForCollection] = useState<ShoppingListItem | null>(null)
   const [showReviews, setShowReviews] = useState<number | null>(null)
-  const [productsLoading, setProductsLoading] = useState(true)
+  const [gpsLoading, setGpsLoading] = useState(false)
 
   // New states for advanced features
-  const [priceEstimates, setPriceEstimates] = useState<any>({})
+  const [priceEstimates, setPriceEstimates] = useState<{ [key: number]: any }>({})
   const [showEstimates, setShowEstimates] = useState(false)
   const [recommendedMarkets, setRecommendedMarkets] = useState<any[]>([])
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [sortBy, setSortBy] = useState("price")
-  const [maxDistance, setMaxDistance] = useState(10)
   const [showRecommendationDialog, setShowRecommendationDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
 
   // Use location hook
   const { 
-    userLocation, 
+    userLocation: userLocationHook, 
     isLoadingLocation, 
     locationError, 
     getCurrentLocation, 
@@ -208,21 +216,16 @@ export default function NovaListaPage() {
             bestPrice: product.avgPrice * 0.9, // Simulate best price
             bestMarket: "Atacadão", // Default best market
           }))
-          setAllProducts(transformedProducts)
           setFilteredProducts(transformedProducts)
         } else {
           console.error('Failed to load products')
           // Fallback to mock data
-          setAllProducts(mockProducts)
           setFilteredProducts(mockProducts)
         }
       } catch (error) {
         console.error('Error loading products:', error)
         // Fallback to mock data
-        setAllProducts(mockProducts)
         setFilteredProducts(mockProducts)
-      } finally {
-        setProductsLoading(false)
       }
     }
 
@@ -231,22 +234,22 @@ export default function NovaListaPage() {
 
   useEffect(() => {
     if (searchTerm) {
-      const filtered = allProducts.filter(
+      const filtered = mockProducts.filter(
         (product) =>
           product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           product.category.toLowerCase().includes(searchTerm.toLowerCase()),
       )
       setFilteredProducts(filtered)
     } else {
-      setFilteredProducts(allProducts)
+      setFilteredProducts(mockProducts)
     }
-  }, [searchTerm, allProducts])
+  }, [searchTerm])
 
   useEffect(() => {
     if (userLocation && selectedItems.length > 0) {
       getMarketRecommendations()
     }
-  }, [userLocation, sortBy, maxDistance])
+  }, [userLocation, sortBy])
 
   // Helper functions for price estimation
   const getUserHistoryPrice = (productId: number) => {
@@ -285,10 +288,8 @@ export default function NovaListaPage() {
     }, 0)
   }
 
-  const sortMarkets = (markets: any[], sortBy: string, maxDistance: number) => {
-    const filtered = markets.filter((market) => !userLocation || market.distance <= maxDistance)
-
-    return filtered.sort((a, b) => {
+  const sortMarkets = (markets: any[], sortBy: string) => {
+    return markets.sort((a, b) => {
       switch (sortBy) {
         case "price":
           return a.estimatedTotal - b.estimatedTotal
@@ -343,7 +344,7 @@ export default function NovaListaPage() {
         distance: market.distance || (userLocation ? calculateDistance(userLocation, market.coordinates) : Math.random() * 5 + 1),
       }))
 
-      const sorted = sortMarkets(marketsWithTotals, sortBy, maxDistance)
+      const sorted = sortMarkets(marketsWithTotals, sortBy)
       setRecommendedMarkets(sorted)
     } catch (error) {
       console.error('Error getting market recommendations:', error)
@@ -481,20 +482,39 @@ export default function NovaListaPage() {
     setIsSaving(true)
 
     try {
-      // Calculate estimates first
-      const estimates: { [key: number]: any } = {}
-      selectedItems.forEach((item) => {
-        const userHistoryPrice = getUserHistoryPrice(item.id)
-        const communityAvgPrice = getCommunityAveragePrice(item.id)
-        const estimatedPrice = userHistoryPrice ? userHistoryPrice * 0.7 + communityAvgPrice * 0.3 : communityAvgPrice
-
-        estimates[item.id] = {
-          estimated: estimatedPrice,
-          userHistory: userHistoryPrice,
-          communityAvg: communityAvgPrice,
-          confidence: userHistoryPrice ? 85 : 65,
-        }
+      // First create the shopping list
+      const response = await fetch('/api/shopping_list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: listName.trim(),
+          userId: user.id,
+          status: 'active'
+        }),
       })
+
+      if (!response.ok) {
+        throw new Error('Failed to create shopping list')
+      }
+
+      const newList = await response.json()
+
+      // Now add all items to the list
+      for (const item of selectedItems) {
+        await fetch('/api/shopping_list_item', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shoppingListId: newList.id,
+            productId: item.id,
+            quantity: item.quantity
+          }),
+        })
+      }
       setPriceEstimates(estimates)
 
       // Get location and calculate market recommendations
@@ -517,6 +537,7 @@ export default function NovaListaPage() {
       }
 
       // Calculate market recommendations
+      // Calculate market recommendations
       const marketsWithTotals = markets.map((market) => ({
         ...market,
         estimatedTotal: selectedItems.reduce((total, item) => {
@@ -527,6 +548,23 @@ export default function NovaListaPage() {
         }, 0),
         distance: market.distance || (location ? calculateDistance(location, market.coordinates) : Math.random() * 5 + 1),
       }))
+
+      // Check if all items are collected
+      const allCollected = selectedItems.every(item => item.collected)
+      
+      // Update list status if needed
+      if (allCollected) {
+        await fetch(`/api/shopping_list`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: newList.id,
+            status: 'completed'
+          }),
+        })
+      }
 
       const sortedMarkets = marketsWithTotals.sort((a, b) => {
         const scoreA = (a.estimatedTotal / 100) * 0.6 + a.distance * 0.4
@@ -752,79 +790,72 @@ export default function NovaListaPage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto">
-                    {productsLoading ? (
-                      <div className="col-span-full text-center py-8 text-gray-500">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-                        <p>Carregando produtos...</p>
-                      </div>
-                    ) : (
-                      filteredProducts.map((product) => (
-                        <div key={product.id} className="space-y-3">
-                          <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <Package className="h-4 w-4 text-gray-400" />
-                                <h3 className="font-medium text-sm">{product.name}</h3>
-                              </div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <Badge variant="secondary" className="text-xs">
-                                  {product.category}
-                                </Badge>
-                                <span className="text-xs text-gray-500">Atualizado {product.lastUpdate}</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-xs text-green-600">
-                                <MapPin className="h-3 w-3" />
-                                <span>Melhor preço: {product.bestMarket || "Atacadão"}</span>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowReviews(showReviews === product.id ? null : product.id)}
-                                className="mt-1 p-0 h-auto text-xs text-blue-600 hover:text-blue-800"
-                              >
-                                <Star className="h-3 w-3 mr-1" />
-                                Ver avaliações
-                              </Button>
+                    {filteredProducts.map((product) => (
+                      <div key={product.id} className="space-y-3">
+                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <Package className="h-4 w-4 text-gray-400" />
+                              <h3 className="font-medium text-sm">{product.name}</h3>
                             </div>
-                            <div className="text-right ml-4">
-                              <p className="font-bold text-green-600">
-                                R$ {product.bestPrice || (product.avgPrice * 0.9).toFixed(2)}
-                              </p>
-                              <p className="text-xs text-gray-500 line-through">R$ {product.avgPrice}</p>
-                              <p className="text-xs text-green-600">
-                                Economia: R${" "}
-                                {(product.avgPrice - (product.bestPrice || product.avgPrice * 0.9)).toFixed(2)}
-                              </p>
-                              <Button size="sm" className="mt-1" onClick={() => addItem(product)}>
-                                <Plus className="h-3 w-3" />
-                              </Button>
+                            <div className="flex items-center gap-2 mb-1">
+                              <Badge variant="secondary" className="text-xs">
+                                {product.category}
+                              </Badge>
+                              <span className="text-xs text-gray-500">Atualizado {product.lastUpdate}</span>
                             </div>
+                            <div className="flex items-center gap-1 text-xs text-green-600">
+                              <MapPin className="h-3 w-3" />
+                              <span>Melhor preço: {product.bestMarket || "Atacadão"}</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowReviews(showReviews === product.id ? null : product.id)}
+                              className="mt-1 p-0 h-auto text-xs text-blue-600 hover:text-blue-800"
+                            >
+                              <Star className="h-3 w-3 mr-1" />
+                              Ver avaliações
+                            </Button>
                           </div>
-
-                          {/* Avaliações Compactas */}
-                          {showReviews === product.id && (
-                            <div className="ml-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-200">
-                              <ProductReviews productId={product.id} productName={product.name} compact={true} />
-                            </div>
-                          )}
+                          <div className="text-right ml-4">
+                            <p className="font-bold text-green-600">
+                              R$ {product.bestPrice || (product.avgPrice * 0.9).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500 line-through">R$ {product.avgPrice}</p>
+                            <p className="text-xs text-green-600">
+                              Economia: R${" "}
+                              {(product.avgPrice - (product.bestPrice || product.avgPrice * 0.9)).toFixed(2)}
+                            </p>
+                            <Button size="sm" className="mt-1" onClick={() => addItem(product)}>
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                      ))
+
+                        {/* Avaliações Compactas */}
+                        {showReviews === product.id && (
+                          <div className="ml-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-200">
+                            <ProductReviews productId={product.id} productName={product.name} compact={true} />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    {!productsLoading && filteredProducts.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>
+                          {searchTerm
+                            ? `Nenhum produto encontrado para "${searchTerm}"`
+                            : "Nenhum produto disponível no momento"}
+                        </p>
+                        <p className="text-sm">
+                          {searchTerm ? "Tente buscar com outros termos" : "Verifique sua conexão ou tente novamente"}
+                        </p>
+                      </div>
                     )}
                   </div>
-
-                  {!productsLoading && filteredProducts.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>
-                        {searchTerm
-                          ? `Nenhum produto encontrado para "${searchTerm}"`
-                          : "Nenhum produto disponível no momento"}
-                      </p>
-                      <p className="text-sm">
-                        {searchTerm ? "Tente buscar com outros termos" : "Verifique sua conexão ou tente novamente"}
-                      </p>
-                    </div>
-                  )}
                 </div>
               </CardContent>
             </Card>
