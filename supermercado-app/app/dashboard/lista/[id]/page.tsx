@@ -54,11 +54,11 @@ export default function ListaDetalhePage() {
           completed: list.items?.filter((item: any) => item.collected).length || 0,
           date: list.createdAt,
           actualTotal: list.items?.reduce((sum: number, item: any) => {
-            return sum + (item.collected ? item.price : 0)
-          }, 0),
+            return sum + (item.collected && item.actualPrice ? item.actualPrice * item.quantity : 0)
+          }, 0) || 0,
           estimatedTotal: list.items?.reduce((sum: number, item: any) => {
             return sum + ((item.product?.avgPrice || 0) * item.quantity)
-          }, 0)
+          }, 0) || 0
         })
       } catch (error) {
         console.error("Error loading list:", error)
@@ -102,18 +102,18 @@ export default function ListaDetalhePage() {
       data: new Date(lista.date).toLocaleDateString("pt-BR"),
       itens:
         lista.listItems?.map((item: any) => ({
-          produto: item.name,
+          produto: item.product?.name || 'Produto',
           quantidade: item.quantity,
-          precoEstimado: `R$ ${item.avgPrice.toFixed(2)}`,
-          precoReal: item.actualPrice ? `R$ ${item.actualPrice.toFixed(2)}` : "Não coletado",
+          precoEstimado: `R$ ${((item.product?.avgPrice || 0) * item.quantity).toFixed(2)}`,
+          precoReal: item.actualPrice ? `R$ ${(item.actualPrice * item.quantity).toFixed(2)}` : "Não coletado",
           coletado: item.collected ? "Sim" : "Não",
         })) || [],
       resumo: {
         totalItens: lista.items,
         itensColetados: lista.completed,
-        valorEstimado: `R$ ${lista.estimatedTotal.toFixed(2)}`,
-        valorReal: `R$ ${lista.actualTotal.toFixed(2)}`,
-        economia: `R$ ${(lista.estimatedTotal - lista.actualTotal).toFixed(2)}`,
+        valorEstimado: `R$ ${(lista.estimatedTotal || 0).toFixed(2)}`,
+        valorReal: `R$ ${(lista.actualTotal || 0).toFixed(2)}`,
+        economia: `R$ ${((lista.estimatedTotal || 0) - (lista.actualTotal || 0)).toFixed(2)}`,
       },
     }
 
@@ -238,11 +238,11 @@ export default function ListaDetalhePage() {
         completed: updatedList.items?.filter((item: any) => item.collected).length || 0,
         date: updatedList.createdAt,
         actualTotal: updatedList.items?.reduce((sum: number, item: any) => {
-          return sum + (item.collected ? item.price : 0)
-        }, 0),
+          return sum + (item.collected && item.actualPrice ? item.actualPrice * item.quantity : 0)
+        }, 0) || 0,
         estimatedTotal: updatedList.items?.reduce((sum: number, item: any) => {
           return sum + ((item.product?.avgPrice || 0) * item.quantity)
-        }, 0)
+        }, 0) || 0
       })
     } catch (error) {
       console.error("Error updating item and list:", error)
@@ -276,22 +276,22 @@ export default function ListaDetalhePage() {
       {/* Header */}
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Voltar
                 </Button>
               </Link>
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-6 w-6 text-green-600" />
-                <h1 className="text-xl font-bold">{lista.name}</h1>
-                {lista.status === "completed" && <Badge className="bg-green-100 text-green-800">Concluída</Badge>}
-                {lista.status === "active" && <Badge className="bg-blue-100 text-blue-800">Ativa</Badge>}
+              <div className="flex items-center gap-2 min-w-0">
+                <ShoppingCart className="h-6 w-6 text-green-600 flex-shrink-0" />
+                <h1 className="text-xl font-bold truncate">{lista.name}</h1>
+                {lista.status === "completed" && <Badge className="bg-green-100 text-green-800 flex-shrink-0">Concluída</Badge>}
+                {lista.status === "active" && <Badge className="bg-blue-100 text-blue-800 flex-shrink-0">Ativa</Badge>}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
               {(lista.recommendedMarkets && lista.recommendedMarkets.length > 0) || lista.listItems?.length > 0 ? (
                 <Button variant="outline" size="sm" onClick={handleShowRecommendations}>
                   <Navigation className="h-4 w-4 mr-2" />
@@ -311,8 +311,8 @@ export default function ListaDetalhePage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="container mx-auto px-4 py-6 md:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Informações da Lista */}
           <div className="lg:col-span-2 space-y-6">
             {/* Resumo */}
@@ -334,11 +334,11 @@ export default function ListaDetalhePage() {
                     <p className="text-sm text-gray-600">Coletados</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">R$ {lista.estimatedTotal.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-purple-600">R$ {(lista.estimatedTotal || 0).toFixed(2)}</p>
                     <p className="text-sm text-gray-600">Estimado</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-orange-600">R$ {lista.actualTotal.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-orange-600">R$ {(lista.actualTotal || 0).toFixed(2)}</p>
                     <p className="text-sm text-gray-600">Gasto Real</p>
                   </div>
                 </div>
@@ -346,7 +346,7 @@ export default function ListaDetalhePage() {
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-green-800">Economia Total:</span>
                     <span className="text-xl font-bold text-green-600">
-                      R$ {(lista.estimatedTotal - lista.actualTotal).toFixed(2)}
+                      R$ {((lista.estimatedTotal || 0) - (lista.actualTotal || 0)).toFixed(2)}
                     </span>
                   </div>
                   <div className="mt-2">
@@ -479,15 +479,17 @@ export default function ListaDetalhePage() {
                     <span className="text-sm text-gray-600">Economia por Item:</span>
                     <span className="text-sm font-medium">
                       R${" "}
-                      {lista.items > 0 ? ((lista.estimatedTotal - lista.actualTotal) / lista.items).toFixed(2) : "0.00"}
+                      {lista.items > 0 && lista.estimatedTotal > 0 && lista.actualTotal >= 0
+                        ? ((lista.estimatedTotal - lista.actualTotal) / lista.items).toFixed(2)
+                        : "0.00"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">% de Economia:</span>
                     <span className="text-sm font-medium text-green-600">
-                      {lista.estimatedTotal > 0
+                      {lista.estimatedTotal > 0 && lista.actualTotal >= 0
                         ? (((lista.estimatedTotal - lista.actualTotal) / lista.estimatedTotal) * 100).toFixed(1)
-                        : 0}
+                        : "0.0"}
                       %
                     </span>
                   </div>
@@ -500,8 +502,8 @@ export default function ListaDetalhePage() {
               <CardHeader>
                 <CardTitle className="text-lg">Ações</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start" onClick={handleShowRecommendations}>
+              <CardContent className="p-6">
+                <Button variant="outline" className="w-full justify-start h-auto py-3 mb-3" onClick={handleShowRecommendations}>
                   <Navigation className="h-4 w-4 mr-2" />
                   {lista.recommendedMarkets && lista.recommendedMarkets.length > 0
                     ? "Ver Recomendações de Mercados"
@@ -509,18 +511,18 @@ export default function ListaDetalhePage() {
                 </Button>
                 {lista.status === "completed" && (
                   <Link href="/dashboard/lista-finalizada">
-                    <Button variant="outline" className="w-full justify-start">
+                    <Button variant="outline" className="w-full justify-start h-auto py-3 mb-3">
                       <MapPin className="h-4 w-4 mr-2" />
                       Ver Mercados Recomendados
                     </Button>
                   </Link>
                 )}
-                <Button variant="outline" className="w-full justify-start" onClick={handleExportList}>
+                <Button variant="outline" className="w-full justify-start h-auto py-3 mb-3" onClick={handleExportList}>
                   <Download className="h-4 w-4 mr-2" />
                   Exportar Lista
                 </Button>
                 <Link href="/dashboard/nova-lista">
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start h-auto py-3">
                     <Edit className="h-4 w-4 mr-2" />
                     Criar Lista Similar
                   </Button>

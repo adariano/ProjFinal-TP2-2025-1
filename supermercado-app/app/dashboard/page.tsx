@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Plus, Search, MapPin, TrendingDown, Star, List, Calendar, Clock, Navigation } from "lucide-react"
+import { MapPin, Clock, TrendingUp, Plus, BarChart3, Star, Target, ShoppingCart, Package, TrendingDown, Ban, Search, List, Navigation } from "lucide-react"
 import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
 import { useLocation } from "@/hooks/use-location"
@@ -266,13 +266,21 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-orange-100 rounded-lg">
-                  <MapPin className="h-6 w-6 text-orange-600" />
+                  {locationError === 'PERMISSION_DENIED' ? (
+                    <Ban className="h-6 w-6 text-red-600" />
+                  ) : (
+                    <MapPin className="h-6 w-6 text-orange-600" />
+                  )}
                 </div>
                 <div>
                   {isLoadingLocation ? (
                     <>
                       <p className="text-2xl font-bold">...</p>
                       <p className="text-sm text-gray-600">Obtendo localização...</p>
+                    </>
+                  ) : locationError === 'PERMISSION_DENIED' ? (
+                    <>
+                      <p className="text-2xl font-bold text-gray-800">Bloqueado</p>
                     </>
                   ) : userLocation ? (
                     <>
@@ -283,9 +291,7 @@ export default function DashboardPage() {
                     <>
                       <p className="text-2xl font-bold text-gray-400">-</p>
                       <p className="text-sm text-red-600">
-                        {locationError ? 
-                          "Acesso negado" :
-                          "GPS indisponível"}
+                        {locationError || "GPS indisponível"}
                       </p>
                       <button
                         onClick={getCurrentLocation}
