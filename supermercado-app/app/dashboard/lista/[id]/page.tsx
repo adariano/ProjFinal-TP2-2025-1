@@ -49,6 +49,7 @@ export default function ListaDetalhePage() {
         const list = await response.json()
         setLista({
           ...list,
+          listItems: list.items || [],
           items: list.items?.length || 0,
           completed: list.items?.filter((item: any) => item.collected).length || 0,
           date: list.createdAt,
@@ -232,6 +233,7 @@ export default function ListaDetalhePage() {
       // Update local state
       setLista({
         ...updatedList,
+        listItems: updatedList.items || [],
         items: updatedList.items?.length || 0,
         completed: updatedList.items?.filter((item: any) => item.collected).length || 0,
         date: updatedList.createdAt,
@@ -389,16 +391,16 @@ export default function ListaDetalhePage() {
                             <div className="h-5 w-5 rounded-full border-2 border-gray-300"></div>
                           )}
                           <div>
-                            <h3 className="font-medium">{item.name}</h3>
+                            <h3 className="font-medium">{item.product?.name || 'Produto'}</h3>
                             <p className="text-sm text-gray-600">
-                              Quantidade: {item.quantity} • Categoria: {item.category}
+                              Quantidade: {item.quantity} • Categoria: {item.product?.category || 'N/A'}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="space-y-1">
                             <p className="text-sm text-gray-600">
-                              Estimado: R$ {(item.avgPrice * item.quantity).toFixed(2)}
+                              Estimado: R$ {((item.product?.avgPrice || 0) * item.quantity).toFixed(2)}
                             </p>
                             {item.collected && item.actualPrice && (
                               <p className="font-medium text-green-600">
@@ -407,7 +409,7 @@ export default function ListaDetalhePage() {
                             )}
                             {item.collected && item.actualPrice && (
                               <p className="text-xs text-green-600">
-                                Economia: R$ {((item.avgPrice - item.actualPrice) * item.quantity).toFixed(2)}
+                                Economia: R$ {(((item.product?.avgPrice || 0) - item.actualPrice) * item.quantity).toFixed(2)}
                               </p>
                             )}
                           </div>
