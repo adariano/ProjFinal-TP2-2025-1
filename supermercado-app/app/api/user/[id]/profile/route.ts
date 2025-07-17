@@ -140,7 +140,7 @@ export async function GET(
       {
         id: 5,
         title: "Economizador",
-        description: "Economizou R$ 100",
+        description: "Economizou R$100",
         icon: "💰",
         earned: totalSavings >= 100,
         date: totalSavings >= 100 ? completedLists[0]?.createdAt.toISOString() : null,

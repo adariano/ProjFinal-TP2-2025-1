@@ -13,11 +13,13 @@ import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
 import { useLocation } from "@/hooks/use-location"
 
-const mockRecentProducts = [
-  { name: "Arroz Tio João 5kg", price: 18.9, market: "Extra", date: "Hoje" },
-  { name: "Leite Integral 1L", price: 4.5, market: "Pão de Açúcar", date: "Ontem" },
-  { name: "Frango Kg", price: 12.8, market: "Carrefour", date: "2 dias" },
-]
+interface RecentProduct {
+  name: string
+  price: number
+  market: string
+  date: string
+  createdAt: string
+}
 
 interface ShoppingListItem {
   id: number
@@ -45,6 +47,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [activeLists, setActiveLists] = useState<ShoppingList[]>([])
   const [historyLists, setHistoryLists] = useState<ShoppingList[]>([])
+  const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([])
   const [stats, setStats] = useState<{ 
     activeLists: number; 
     monthSavings: number; 
@@ -86,9 +89,10 @@ export default function DashboardPage() {
     // Load lists and stats from API
     const fetchData = async () => {
       try {
-        const [listsResponse, statsResponse] = await Promise.all([
+        const [listsResponse, statsResponse, recentProductsResponse] = await Promise.all([
           fetch(`/api/shopping_list?userId=${parsedUser.id}`),
-          fetch(`/api/stats?userId=${parsedUser.id}`)
+          fetch(`/api/stats?userId=${parsedUser.id}`),
+          fetch(`/api/price_reports/recent`)
         ])
 
         if (listsResponse.ok) {
@@ -105,10 +109,16 @@ export default function DashboardPage() {
           const statsData = await statsResponse.json()
           setStats(statsData)
         }
+
+        if (recentProductsResponse.ok) {
+          const recentProductsData: RecentProduct[] = await recentProductsResponse.json()
+          setRecentProducts(recentProductsData)
+        }
       } catch (error) {
         console.error("Error fetching data:", error)
         setActiveLists([])
         setHistoryLists([])
+        setRecentProducts([])
         setStats({ activeLists: 0, monthSavings: 0, points: 0, prices: 0, reviews: 0 })
       }
     }
@@ -428,7 +438,7 @@ export default function DashboardPage() {
                 <CardDescription>Últimos preços coletados pela comunidade</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {mockRecentProducts.map((product, index) => (
+                {recentProducts.map((product, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex-1">
                       <p className="font-medium text-sm">{product.name}</p>
@@ -436,9 +446,12 @@ export default function DashboardPage() {
                         {product.market} • {product.date}
                       </p>
                     </div>
-                    <p className="font-bold text-green-600">R$ {product.price}</p>
+                    <p className="font-bold text-green-600">R$ {product.price.toFixed(2)}</p>
                   </div>
                 ))}
+                {recentProducts.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">Nenhum preço recente disponível</p>
+                )}
               </CardContent>
             </Card>
 

@@ -411,24 +411,24 @@ export default function PerfilPage() {
               <CardContent>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
+                    <span>Sugerir produto</span>
+                    <Badge variant="secondary">15 pts</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
                     <span>Informar preço</span>
-                    <Badge variant="secondary">+10 pts</Badge>
+                    <Badge variant="secondary">10 pts</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Avaliar produto</span>
-                    <Badge variant="secondary">+5 pts</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Sugerir produto</span>
-                    <Badge variant="secondary">+15 pts</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Criar lista</span>
-                    <Badge variant="secondary">+2 pts</Badge>
+                    <Badge variant="secondary">5 pts</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Completar compra</span>
-                    <Badge variant="secondary">+3 pts</Badge>
+                    <Badge variant="secondary">3 pts</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Criar lista</span>
+                    <Badge variant="secondary">2 pts</Badge>
                   </div>
                 </div>
               </CardContent>
