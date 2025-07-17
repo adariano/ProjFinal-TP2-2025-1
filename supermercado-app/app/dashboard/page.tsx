@@ -90,10 +90,18 @@ export default function DashboardPage() {
   const router = useRouter()
   const [activeLists, setActiveLists] = useState<ShoppingList[]>([])
   const [historyLists, setHistoryLists] = useState<ShoppingList[]>([])
-  const [stats, setStats] = useState<{ activeLists: number; monthSavings: number; points: number }>({
+  const [stats, setStats] = useState<{ 
+    activeLists: number; 
+    monthSavings: number; 
+    points: number;
+    prices: number;
+    reviews: number;
+  }>({
     activeLists: 0,
     monthSavings: 0,
-    points: 0
+    points: 0,
+    prices: 0,
+    reviews: 0
   })
   const { 
     userLocation, 
@@ -103,6 +111,13 @@ export default function DashboardPage() {
     nearbyMarkets, 
     isLoadingMarkets 
   } = useLocation()
+
+  // Auto request location when page loads
+  useEffect(() => {
+    if (!userLocation && !isLoadingLocation) {
+      getCurrentLocation()
+    }
+  }, [])
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -139,7 +154,7 @@ export default function DashboardPage() {
         console.error("Error fetching data:", error)
         setActiveLists([])
         setHistoryLists([])
-        setStats({ activeLists: 0, monthSavings: 0, points: 0 })
+        setStats({ activeLists: 0, monthSavings: 0, points: 0, prices: 0, reviews: 0 })
       }
     }
 
@@ -254,18 +269,32 @@ export default function DashboardPage() {
                   <MapPin className="h-6 w-6 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
-                    {isLoadingMarkets ? "..." : nearbyMarkets.length}
-                  </p>
-                  <p className="text-sm text-gray-600">Mercados próximos</p>
-                  {!userLocation && (
-                    <button
-                      onClick={getCurrentLocation}
-                      disabled={isLoadingLocation}
-                      className="text-xs text-blue-600 hover:text-blue-800 mt-1"
-                    >
-                      {isLoadingLocation ? "Obtendo localização..." : "Obter localização"}
-                    </button>
+                  {isLoadingLocation ? (
+                    <>
+                      <p className="text-2xl font-bold">...</p>
+                      <p className="text-sm text-gray-600">Obtendo localização...</p>
+                    </>
+                  ) : userLocation ? (
+                    <>
+                      <p className="text-2xl font-bold">{nearbyMarkets.length}</p>
+                      <p className="text-sm text-gray-600">Mercados próximos</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-gray-400">-</p>
+                      <p className="text-sm text-red-600">
+                        {locationError ? 
+                          "Acesso negado" :
+                          "GPS indisponível"}
+                      </p>
+                      <button
+                        onClick={getCurrentLocation}
+                        disabled={isLoadingLocation}
+                        className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                      >
+                        Tentar novamente
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -279,15 +308,15 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="text-center">
-                    <p className="text-xl font-bold text-purple-600">247</p>
+                    <p className="text-xl font-bold text-purple-600">{stats.points}</p>
                     <p className="text-xs text-purple-700">Pontos</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-purple-600">15</p>
+                    <p className="text-xl font-bold text-purple-600">{stats.prices}</p>
                     <p className="text-xs text-purple-700">Preços</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-purple-600">8</p>
+                    <p className="text-xl font-bold text-purple-600">{stats.reviews}</p>
                     <p className="text-xs text-purple-700">Avaliações</p>
                   </div>
                 </div>

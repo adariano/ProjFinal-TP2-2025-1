@@ -22,7 +22,11 @@ model User {
   role           Role            @default(USER)
   points         Int             @default(0)
   createdAt      DateTime        @default(now())
-  shoppingLists  ShoppingList[]
+  shoppingLists  ShoppingList[]  @relation("UserShoppingLists")
+  collectedItems ShoppingListItem[] @relation("UserCollectedItems")
+  reviewedLists  ShoppingList[]    @relation("UserReviewedLists")
+  priceReports   PriceReport[]     @relation("UserPriceReports")
+  reviews        Review[]          @relation("UserReviews")
 }
 
 model Product {
@@ -33,6 +37,7 @@ model Product {
   avgPrice    Float
   lastUpdate  DateTime  @default(now())
   items       ShoppingListItem[]
+  priceReports PriceReport[]
 }
 
 model Market {
@@ -51,6 +56,8 @@ model Market {
   longitude     Float?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @default(now()) @updatedAt
+  priceReports  PriceReport[]
+  reviews       Review[]
 }
 
 model ShoppingList {
@@ -61,7 +68,12 @@ model ShoppingList {
   userId          Int
   estimatedTotal  Float?
   actualTotal     Float?
-  user            User                 @relation(fields: [userId], references: [id])
+  reviewed        Boolean              @default(false)
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+
+  user            User                 @relation("UserShoppingLists", fields: [userId], references: [id])
+  reviewer        User?                @relation("UserReviewedLists", fields: [reviewedBy], references: [id])
   items           ShoppingListItem[]
 }
 
@@ -71,9 +83,42 @@ model ShoppingListItem {
   collected     Boolean       @default(false)
   productId     Int
   shoppingListId Int
+  collectedBy   Int?
+  collectedAt   DateTime?
 
   product       Product       @relation(fields: [productId], references: [id])
-  shoppingList  ShoppingList @relation(fields: [shoppingListId], references: [id])
+  shoppingList  ShoppingList  @relation(fields: [shoppingListId], references: [id])
+  collector     User?         @relation("UserCollectedItems", fields: [collectedBy], references: [id])
+}
+
+model PriceReport {
+  id          Int      @id @default(autoincrement())
+  price       Float
+  productId   Int
+  marketId    Int
+  userId      Int
+  createdAt   DateTime @default(now())
+  user        User     @relation("UserPriceReports", fields: [userId], references: [id])
+  market      Market   @relation(fields: [marketId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@index([userId])
+  @@index([marketId])
+  @@index([productId])
+}
+
+model Review {
+  id          Int      @id @default(autoincrement())
+  rating      Float
+  comment     String?
+  marketId    Int
+  userId      Int
+  createdAt   DateTime @default(now())
+  user        User     @relation("UserReviews", fields: [userId], references: [id])
+  market      Market   @relation(fields: [marketId], references: [id])
+
+  @@index([userId])
+  @@index([marketId])
 }
 
 enum Role {

@@ -10,21 +10,22 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
-  ShoppingCart,
   ArrowLeft,
-  Plus,
-  Search,
   X,
+  ShoppingCart,
+  Search,
   Package,
-  TrendingUp,
   MapPin,
+  Plus,
+  Save,
   CheckCircle,
   Camera,
   Star,
-  Save,
+  TrendingUp,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
-import { CollectItemDialog } from "@/components/collect-item-dialog"
+import CollectItemDialog from "@/components/collect-item-dialog"
 import { ProductReviews } from "@/components/product-reviews"
 import { MarketRecommendationDialog } from "@/components/market-recommendation-dialog"
 import { useLocation } from "@/hooks/use-location"
@@ -171,6 +172,7 @@ export default function NovaListaPage() {
   const [collectDialogOpen, setCollectDialogOpen] = useState(false)
   const [selectedItemForCollection, setSelectedItemForCollection] = useState<ShoppingListItem | null>(null)
   const [showReviews, setShowReviews] = useState<number | null>(null)
+  const [productsLoading, setProductsLoading] = useState(true)
   const [gpsLoading, setGpsLoading] = useState(false)
 
   // New states for advanced features
@@ -181,13 +183,13 @@ export default function NovaListaPage() {
   const [sortBy, setSortBy] = useState("price")
   const [showRecommendationDialog, setShowRecommendationDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [locationRequested, setLocationRequested] = useState(false)
 
   // Use location hook
   const { 
     userLocation: userLocationHook, 
     isLoadingLocation, 
     locationError, 
-    getCurrentLocation, 
     nearbyMarkets, 
     isLoadingMarkets 
   } = useLocation()
@@ -203,9 +205,24 @@ export default function NovaListaPage() {
     setUser(JSON.parse(userData))
   }, [router])
 
+  // Auto request location when page loads
+  useEffect(() => {
+    if (!locationRequested && !userLocationHook && !isLoadingLocation) {
+      updateUserLocation()
+    }
+  }, [])
+
+  // Update local state when hook location changes
+  useEffect(() => {
+    if (userLocationHook) {
+      setUserLocation(userLocationHook)
+    }
+  }, [userLocationHook])
+
   // Load products from API
   useEffect(() => {
     const loadProducts = async () => {
+      setProductsLoading(true)
       try {
         const response = await fetch('/api/product')
         if (response.ok) {
@@ -226,6 +243,8 @@ export default function NovaListaPage() {
         console.error('Error loading products:', error)
         // Fallback to mock data
         setFilteredProducts(mockProducts)
+      } finally {
+        setProductsLoading(false)
       }
     }
 
@@ -358,26 +377,29 @@ export default function NovaListaPage() {
     }
   }
 
-  const getCurrentLocation = () => {
-    setGpsLoading(true)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-          setGpsLoading(false)
-        },
-        (error) => {
-          console.error("Erro ao obter localização:", error)
-          alert("Não foi possível obter sua localização")
-          setGpsLoading(false)
-        },
-      )
-    } else {
-      alert("Geolocalização não é suportada neste navegador")
-      setGpsLoading(false)
+  const updateUserLocation = () => {
+    if (!locationRequested) {
+      setLocationRequested(true)
+      setGpsLoading(true)
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            })
+            setGpsLoading(false)
+          },
+          (error) => {
+            console.error("Erro ao obter localização:", error)
+            setUserLocation(null)
+            setGpsLoading(false)
+          },
+        )
+      } else {
+        setUserLocation(null)
+        setGpsLoading(false)
+      }
     }
   }
 
@@ -483,7 +505,7 @@ export default function NovaListaPage() {
 
     try {
       // First create the shopping list
-      const response = await fetch('/api/shopping_list', {
+      const createListResponse = await fetch('/api/shopping_list', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -495,11 +517,11 @@ export default function NovaListaPage() {
         }),
       })
 
-      if (!response.ok) {
+      if (!createListResponse.ok) {
         throw new Error('Failed to create shopping list')
       }
 
-      const newList = await response.json()
+      const newList = await createListResponse.json()
 
       // Now add all items to the list
       for (const item of selectedItems) {
@@ -515,14 +537,13 @@ export default function NovaListaPage() {
           }),
         })
       }
-      setPriceEstimates(estimates)
 
       // Get location and calculate market recommendations
       let location = userLocation
 
       if (!location) {
         // Try to get GPS location using the hook
-        getCurrentLocation()
+        updateUserLocation()
         location = userLocation // Will be set by the hook
       }
 
@@ -541,7 +562,7 @@ export default function NovaListaPage() {
       const marketsWithTotals = markets.map((market) => ({
         ...market,
         estimatedTotal: selectedItems.reduce((total, item) => {
-          const estimate = estimates[item.id]?.estimated || item.avgPrice
+          const estimate = priceEstimates[item.id]?.estimated || item.avgPrice
           const priceMultipliers: { [key: number]: number } = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
           const multiplier = priceMultipliers[market.id] || 1.0
           return total + estimate * item.quantity * multiplier
@@ -575,7 +596,7 @@ export default function NovaListaPage() {
       setRecommendedMarkets(sortedMarkets)
 
       // Save to database using API
-      const response = await fetch('/api/shopping_list', {
+      const updateListResponse = await fetch('/api/shopping_list', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -586,11 +607,11 @@ export default function NovaListaPage() {
         }),
       })
 
-      if (!response.ok) {
+      if (!updateListResponse.ok) {
         throw new Error('Erro ao salvar lista no servidor')
       }
 
-      const savedList = await response.json()
+      const savedList = await updateListResponse.json()
 
       // Add items to the saved list
       for (const item of selectedItems) {
@@ -674,7 +695,40 @@ export default function NovaListaPage() {
                     />
                   </div>
 
-                  {selectedItems.length > 0 && <div className="flex gap-2"></div>}
+                  <div className="flex gap-2 mt-4 items-center">
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-600 mb-1">Localização</p>
+                      {isLoadingLocation ? (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Obtendo localização...</span>
+                        </div>
+                      ) : userLocationHook ? (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-green-600" />
+                          <span className="text-sm text-green-600">
+                            {nearbyMarkets.length} mercados próximos
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-red-600">
+                            {locationError ? 
+                              "Acesso à localização negado. Permita o acesso à localização para ver mercados próximos." :
+                              "Não foi possível obter sua localização. Verifique se seu dispositivo tem suporte a GPS."}
+                          </span>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={updateUserLocation}
+                          >
+                            <MapPin className="h-4 w-4 mr-2" />
+                            Tentar novamente
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1035,6 +1089,7 @@ export default function NovaListaPage() {
         onOpenChange={setCollectDialogOpen}
         item={selectedItemForCollection}
         onItemCollected={handleItemCollected}
+        shoppingListId={-1} // Use -1 to indicate this is a new list
       />
 
       {/* Market Recommendation Dialog */}

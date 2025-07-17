@@ -13,20 +13,27 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get active lists count
-    const activeLists = await prisma.shoppingList.count({
-      where: {
-        userId: parseInt(userId),
-        status: 'active',
-      },
-    });
+    const parsedUserId = parseInt(userId);
 
-    // Calculate total savings this month
+    // Get active lists count and user data
+    const [activeListsCount, user] = await Promise.all([
+      prisma.shoppingList.count({
+        where: {
+          userId: parsedUserId,
+          status: 'active',
+        },
+      }),
+      prisma.user.findUnique({
+        where: { id: parsedUserId }
+      }),
+    ]);
+
+    // Get lists completed this month for savings calculation
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const completedListsThisMonth = await prisma.shoppingList.findMany({
       where: {
-        userId: parseInt(userId),
+        userId: parsedUserId,
         status: 'completed',
         createdAt: {
           gte: firstDayOfMonth,
@@ -34,24 +41,34 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const monthSavings = completedListsThisMonth.reduce((total, list) => {
-      if (list.estimatedTotal && list.actualTotal) {
+    // Calculate total savings
+    const monthSavings = completedListsThisMonth.reduce((total: number, list: any) => {
+      if (list.estimatedTotal != null && list.actualTotal != null) {
         return total + (list.estimatedTotal - list.actualTotal);
       }
       return total;
     }, 0);
 
-    // Get user points
-    const user = await prisma.user.findUnique({
-      where: {
-        id: parseInt(userId),
-      },
-    });
+    // Get counts from related tables
+    const [pricesCount, reviewsCount] = await Promise.all([
+      prisma.priceReport.count({
+        where: {
+          userId: parsedUserId,
+        },
+      }),
+      prisma.review.count({
+        where: {
+          userId: parsedUserId,
+        },
+      }),
+    ]);
 
     return NextResponse.json({
-      activeLists,
+      activeLists: activeListsCount,
       monthSavings,
       points: user?.points || 0,
+      prices: pricesCount,
+      reviews: reviewsCount,
     });
   } catch (error) {
     console.error("Failed to fetch stats:", error);
