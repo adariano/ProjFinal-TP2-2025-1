@@ -13,51 +13,6 @@ import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
 import { useLocation } from "@/hooks/use-location"
 
-interface BaseMockList {
-  id: number;
-  name: string;
-  items: number;
-  completed: number;
-  createdAt: string;
-  estimatedTotal: number;
-  actualTotal?: number | null;
-  status: "active" | "completed";
-}
-
-// Mock data
-const mockLists: BaseMockList[] = [
-  {
-    id: 1,
-    name: "Compras da Semana",
-    items: 12,
-    completed: 8,
-    createdAt: "2025-01-20T10:00:00.000Z",
-    estimatedTotal: 89.5,
-    actualTotal: 85.3,
-    status: "completed",
-  },
-  {
-    id: 2,
-    name: "Festa de Aniversário",
-    items: 25,
-    completed: 0,
-    createdAt: "2025-01-25T10:00:00.000Z",
-    estimatedTotal: 156.8,
-    actualTotal: null,
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "Produtos de Limpeza",
-    items: 8,
-    completed: 8,
-    createdAt: "2025-01-18T10:00:00.000Z",
-    estimatedTotal: 45.2,
-    actualTotal: 42.8,
-    status: "completed",
-  },
-]
-
 const mockRecentProducts = [
   { name: "Arroz Tio João 5kg", price: 18.9, market: "Extra", date: "Hoje" },
   { name: "Leite Integral 1L", price: 4.5, market: "Pão de Açúcar", date: "Ontem" },
@@ -427,34 +382,36 @@ export default function DashboardPage() {
 
             <div>
               {historyLists.slice(0, 3).map((list) => (
-                <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer mb-3">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">{list.name}</h3>
-                          <Badge variant="secondary" className="bg-gray-100 text-gray-800">
-                            {list.status === "completed" ? "Finalizada" : "Modificada"}
-                          </Badge>
+                <Link key={list.id} href={`/dashboard/lista/${list.id}`} className="block mb-3">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-gray-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-lg">{list.name}</h3>
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                              {list.status === "completed" ? "Finalizada" : "Modificada"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span>
+                              Total: {list.items.length} itens
+                            </span>
+                            <span>
+                              {list.completed > 0 && `${((list.completed / list.items.length) * 100).toFixed(0)}% coletados`}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span>
-                            Total: {list.items.length} itens
-                          </span>
-                          <span>
-                            {list.completed > 0 && `${((list.completed / list.items.length) * 100).toFixed(0)}% coletados`}
-                          </span>
+                        <div className="text-right ml-4">
+                          <p className="text-lg font-bold text-gray-600">
+                            R$ {(list.actualTotal || list.estimatedTotal || 0).toFixed(2)}
+                          </p>
+                          <p className="text-sm text-gray-600">gasto real</p>
                         </div>
                       </div>
-                      <div className="text-right ml-4">
-                        <p className="text-lg font-bold text-gray-600">
-                          R$ {(list.actualTotal || list.estimatedTotal || 0).toFixed(2)}
-                        </p>
-                        <p className="text-sm text-gray-600">gasto real</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
               {historyLists.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-4">Nenhuma atividade recente.</p>
@@ -554,28 +511,28 @@ export default function DashboardPage() {
                 <CardDescription>Suas últimas listas salvas</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                                {mockLists
-                  .filter((list): list is BaseMockList & { actualTotal: number } => 
-                    list.actualTotal != null && typeof list.actualTotal === 'number'
-                  )
+                {historyLists
+                  .filter((list) => list.actualTotal != null && typeof list.actualTotal === 'number')
                   .slice(0, 3)
                   .map((list) => (
-                    <div key={list.id} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{list.name}</p>
-                        <p className="text-xs text-gray-600">
-                          {list.items} itens • {new Date(list.createdAt).toLocaleDateString("pt-BR")}
-                        </p>
+                    <Link key={list.id} href={`/dashboard/lista/${list.id}`}>
+                      <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{list.name}</p>
+                          <p className="text-xs text-gray-600">
+                            {list.items.length} itens • {new Date(list.createdAt).toLocaleDateString("pt-BR")}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-green-600 text-sm">R$ {(list.actualTotal || 0).toFixed(2)}</p>
+                          <p className="text-xs text-gray-600">
+                            -{list.actualTotal ? (((list.estimatedTotal - list.actualTotal) / list.estimatedTotal) * 100).toFixed(0) : 0}%
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-green-600 text-sm">R$ {list.actualTotal.toFixed(2)}</p>
-                        <p className="text-xs text-gray-600">
-                          -{(((list.estimatedTotal - list.actualTotal) / list.estimatedTotal) * 100).toFixed(0)}%
-                        </p>
-                      </div>
-                    </div>
+                    </Link>
                   ))}
-                {mockLists.filter((list) => list.actualTotal != null).length === 0 && (
+                {historyLists.filter((list) => list.actualTotal != null).length === 0 && (
                   <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista salva ainda</p>
                 )}
               </CardContent>
