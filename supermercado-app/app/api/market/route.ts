@@ -17,11 +17,14 @@ export async function POST(request: Request) {
     categories, 
     description,
     latitude,
-    longitude
+    longitude,
+    placeId,
+    website,
+    businessStatus
   } = data
 
-  if (!name || !address || !phone || !googleMapsUrl) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  if (!name || !address) {
+    return NextResponse.json({ error: 'Name and address are required' }, { status: 400 })
   }
 
   try {
@@ -29,7 +32,7 @@ export async function POST(request: Request) {
       name,
       address,
       distance: distance || 0,
-      rating: rating || 4.0,
+      rating: rating || 0,
     }
 
     if (phone) marketData.phone = phone
@@ -40,6 +43,9 @@ export async function POST(request: Request) {
     if (description) marketData.description = description
     if (latitude) marketData.latitude = latitude
     if (longitude) marketData.longitude = longitude
+    if (placeId) marketData.placeId = placeId
+    if (website) marketData.website = website
+    if (businessStatus) marketData.businessStatus = businessStatus
 
     const market = await prisma.market.create({
       data: marketData,
@@ -82,11 +88,14 @@ export async function PUT(request: Request) {
     categories, 
     description,
     latitude,
-    longitude
+    longitude,
+    placeId,
+    website,
+    businessStatus
   } = data
 
   if (!id || !name || !address) {
-    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    return NextResponse.json({ error: 'ID, name and address are required' }, { status: 400 })
   }
 
   try {
@@ -94,7 +103,7 @@ export async function PUT(request: Request) {
       name,
       address,
       distance: distance || 0,
-      rating: rating || 4.0,
+      rating: rating || 0,
     }
 
     if (phone) marketData.phone = phone
@@ -105,6 +114,9 @@ export async function PUT(request: Request) {
     if (description) marketData.description = description
     if (latitude) marketData.latitude = latitude
     if (longitude) marketData.longitude = longitude
+    if (placeId) marketData.placeId = placeId
+    if (website) marketData.website = website
+    if (businessStatus) marketData.businessStatus = businessStatus
 
     const market = await prisma.market.update({
       where: { id: Number(id) },

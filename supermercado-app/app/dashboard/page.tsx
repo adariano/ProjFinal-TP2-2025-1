@@ -259,7 +259,7 @@ export default function DashboardPage() {
                         {locationError || "GPS indisponível"}
                       </p>
                       <button
-                        onClick={getCurrentLocation}
+                        onClick={() => getCurrentLocation(true)}
                         disabled={isLoadingLocation}
                         className="text-xs text-blue-600 hover:text-blue-800 mt-1"
                       >

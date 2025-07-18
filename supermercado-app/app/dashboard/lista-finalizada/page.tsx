@@ -274,7 +274,7 @@ export default function ListaFinalizadaPage() {
                   </div>
                   {useGPS && (
                     <Button
-                      onClick={getCurrentLocation}
+                      onClick={() => getCurrentLocation(true)}
                       disabled={isLoadingLocation}
                       variant="outline"
                       size="sm"

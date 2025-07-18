@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { sortMarketsByDistance } from '@/lib/location-utils'
+import { sortMarketsByDistance, clearRoutingServiceCache } from '@/lib/location-utils'
 
 interface UserLocation {
   lat: number
@@ -10,7 +10,7 @@ interface UseLocationReturn {
   userLocation: UserLocation | null
   isLoadingLocation: boolean
   locationError: string | null
-  getCurrentLocation: () => void
+  getCurrentLocation: (forceRefresh?: boolean) => void
   nearbyMarkets: any[]
   isLoadingMarkets: boolean
 }
@@ -22,14 +22,27 @@ export function useLocation(): UseLocationReturn {
   const [nearbyMarkets, setNearbyMarkets] = useState<any[]>([])
   const [isLoadingMarkets, setIsLoadingMarkets] = useState(false)
 
-  const getCurrentLocation = () => {
+  const getCurrentLocation = (forceRefresh: boolean = false) => {
     setIsLoadingLocation(true)
     setLocationError(null)
+
+    // If this is a cache refresh, clear the routing service cache and markets
+    if (forceRefresh) {
+      clearRoutingServiceCache()
+      setNearbyMarkets([])
+      console.log('Cache refresh requested - clearing routing cache and markets')
+    }
 
     if (!navigator.geolocation) {
       setLocationError('Geolocalização não é suportada neste navegador')
       setIsLoadingLocation(false)
       return
+    }
+
+    const geoOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: forceRefresh ? 0 : 300000, // Force fresh location if refreshing
     }
 
     navigator.geolocation.getCurrentPosition(
@@ -38,6 +51,7 @@ export function useLocation(): UseLocationReturn {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         }
+        console.log('Got user location:', location)
         setUserLocation(location)
         setIsLoadingLocation(false)
         
@@ -104,11 +118,7 @@ export function useLocation(): UseLocationReturn {
         setLocationError(errorMessage)
         setIsLoadingLocation(false)
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 300000, // 5 minutes
-      }
+      geoOptions
     )
   }
 
@@ -116,20 +126,37 @@ export function useLocation(): UseLocationReturn {
     setIsLoadingMarkets(true)
     
     try {
-      const response = await fetch('/api/market')
+      console.log('Loading nearby markets for location:', location)
+      const response = await fetch(
+        `/api/market/nearby?lat=${location.lat}&lng=${location.lng}&radius=25&limit=20&driving=true`
+      )
+      
       if (response.ok) {
-        const markets = await response.json()
-        
-        // Sort markets by distance from user location
-        const sortedMarkets = sortMarketsByDistance(markets, location.lat, location.lng)
-        
-        // Get only nearby markets (within 10km)
-        const nearby = sortedMarkets.filter(market => market.distance <= 10)
-        
-        setNearbyMarkets(nearby)
+        const data = await response.json()
+        console.log('Nearby markets API response:', data)
+        setNearbyMarkets(data.markets || [])
+      } else {
+        console.log('Nearby markets API failed, trying fallback:', response.status)
+        // Fallback to regular market API if nearby fails
+        const fallbackResponse = await fetch('/api/market')
+        if (fallbackResponse.ok) {
+          const markets = await fallbackResponse.json()
+          console.log('Fallback markets loaded:', markets.length)
+          
+          // Sort markets by distance from user location
+          const sortedMarkets = sortMarketsByDistance(markets, location.lat, location.lng)
+          
+          // Get only nearby markets (within 25km)
+          const nearby = sortedMarkets.filter(market => market.distance <= 25)
+          console.log('Nearby markets after filtering:', nearby.length)
+          
+          setNearbyMarkets(nearby)
+        }
       }
     } catch (error) {
-      console.error('Error loading markets:', error)
+      console.error('Error loading nearby markets:', error)
+      // Fallback to empty array instead of crash
+      setNearbyMarkets([])
     } finally {
       setIsLoadingMarkets(false)
     }

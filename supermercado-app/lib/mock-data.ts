@@ -48,28 +48,10 @@ export const mockProducts = [
   },
 ]
 
+// DEPRECATED: Use the real API endpoints instead
 export const mockMarkets = [
-  {
-    id: 1,
-    name: "Extra Hipermercado",
-    address: "Av. Paulista, 1000",
-    distance: 1.2,
-    rating: 4.5,
-  },
-  {
-    id: 2,
-    name: "Pão de Açúcar",
-    address: "Rua Augusta, 500",
-    distance: 0.8,
-    rating: 4.7,
-  },
-  {
-    id: 3,
-    name: "Carrefour",
-    address: "Shopping Center Norte",
-    distance: 2.1,
-    rating: 4.2,
-  },
+  // Mock markets are now replaced by real database data
+  // Use the /api/market or /api/market/nearby endpoints instead
 ]
 
 export const mockShoppingLists = [

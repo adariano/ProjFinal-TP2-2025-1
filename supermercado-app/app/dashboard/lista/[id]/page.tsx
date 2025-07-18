@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { MarketRecommendationDialog } from "@/components/market-recommendation-dialog"
+import { useLocation } from "@/hooks/use-location"
 
 export default function ListaDetalhePage() {
   const [user, setUser] = useState<any>(null)
@@ -29,6 +30,9 @@ export default function ListaDetalhePage() {
   const router = useRouter()
   const params = useParams()
   const listId = params.id
+
+  // Get user location for navigation
+  const { userLocation } = useLocation()
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -127,9 +131,18 @@ export default function ListaDetalhePage() {
     URL.revokeObjectURL(url)
   }
 
-  const handleNavigateToMarket = (market: any) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(market.address)}`
-    window.open(url, "_blank")
+    const handleNavigateToMarket = (market: any) => {
+    // Use user location for navigation if available
+    if (userLocation) {
+      const origin = `${userLocation.lat},${userLocation.lng}`
+      const destination = `${market.lat},${market.lng}`
+      const url = `https://www.google.com/maps/dir/${origin}/${destination}`
+      window.open(url, '_blank')
+    } else {
+      // Fallback to market location only
+      const url = `https://www.google.com/maps/search/?api=1&query=${market.lat},${market.lng}`
+      window.open(url, '_blank')
+    }
   }
 
   const handleShowRecommendations = () => {

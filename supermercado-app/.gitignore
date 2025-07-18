@@ -16,6 +16,9 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# routing services logs
+routing-services.log
+
 # env files
 .env*
 

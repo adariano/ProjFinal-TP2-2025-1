@@ -26,86 +26,14 @@ import { UserMenu } from "@/components/user-menu"
 import { AddMarketDialog } from "@/components/add-market-dialog"
 import { RateMarketDialog } from "@/components/rate-market-dialog"
 import { EditMarketDialog } from "@/components/edit-market-dialog"
+import { AccuracyMeter } from "@/components/accuracy-meter"
 import { useLocation } from "@/hooks/use-location"
 import { 
   sortMarketsByDistance, 
+  sortMarketsByDrivingDistance,
   reverseGeocode, 
   geocodeAddress 
 } from "@/lib/location-utils"
-
-// Mock data for markets
-const mockMarkets = [
-  {
-    id: 1,
-    name: "Extra Hiper",
-    address: "Av. Paulista, 1000 - Bela Vista, São Paulo",
-    distance: 0.8,
-    rating: 4.2,
-    reviews: 1250,
-    phone: "(11) 3456-7890",
-    hours: "06:00 - 00:00",
-    categories: ["Supermercado", "Farmácia", "Padaria"],
-    priceLevel: "$$",
-    estimatedTime: "5 min",
-    coordinates: { lat: -23.5615, lng: -46.6562 },
-  },
-  {
-    id: 2,
-    name: "Pão de Açúcar",
-    address: "R. Augusta, 500 - Consolação, São Paulo",
-    distance: 1.2,
-    rating: 4.5,
-    reviews: 890,
-    phone: "(11) 2345-6789",
-    hours: "07:00 - 23:00",
-    categories: ["Supermercado", "Delicatessen"],
-    priceLevel: "$$$",
-    estimatedTime: "8 min",
-    coordinates: { lat: -23.5505, lng: -46.6333 },
-  },
-  {
-    id: 3,
-    name: "Carrefour Express",
-    address: "R. da Consolação, 300 - Centro, São Paulo",
-    distance: 1.5,
-    rating: 3.8,
-    reviews: 650,
-    phone: "(11) 1234-5678",
-    hours: "24 horas",
-    categories: ["Supermercado", "Conveniência"],
-    priceLevel: "$",
-    estimatedTime: "10 min",
-    coordinates: { lat: -23.5431, lng: -46.6291 },
-  },
-  {
-    id: 4,
-    name: "Atacadão",
-    address: "Av. Cruzeiro do Sul, 1500 - Canindé, São Paulo",
-    distance: 2.3,
-    rating: 4.0,
-    reviews: 2100,
-    phone: "(11) 9876-5432",
-    hours: "07:00 - 22:00",
-    categories: ["Atacado", "Supermercado"],
-    priceLevel: "$",
-    estimatedTime: "15 min",
-    coordinates: { lat: -23.5089, lng: -46.6228 },
-  },
-  {
-    id: 5,
-    name: "Mercado São Luiz",
-    address: "R. Haddock Lobo, 200 - Cerqueira César, São Paulo",
-    distance: 2.8,
-    rating: 4.3,
-    reviews: 420,
-    phone: "(11) 8765-4321",
-    hours: "06:30 - 22:30",
-    categories: ["Supermercado", "Orgânicos"],
-    priceLevel: "$$$",
-    estimatedTime: "18 min",
-    coordinates: { lat: -23.5629, lng: -46.6544 },
-  },
-]
 
 export default function MercadosPage() {
   const [user, setUser] = useState<any>(null)
@@ -127,8 +55,9 @@ export default function MercadosPage() {
     isLoadingMarkets 
   } = useLocation()
 
-  // Use nearbyMarkets from the hook, fallback to mockMarkets for admin
+  // Use nearbyMarkets from the hook, fallback to API for admin
   const [markets, setMarkets] = useState<any[]>([])
+  const [isLoadingAllMarkets, setIsLoadingAllMarkets] = useState(false)
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -143,36 +72,44 @@ export default function MercadosPage() {
   useEffect(() => {
     if (!user) return
 
+    console.log('Markets page: user role:', user.role)
+    console.log('Markets page: nearbyMarkets length:', nearbyMarkets.length)
+
     if (user.role === 'ADMIN') {
       // Admin sees all markets from API
       const loadMarkets = async () => {
+        setIsLoadingAllMarkets(true)
         try {
           const response = await fetch('/api/market')
           if (response.ok) {
             const apiMarkets = await response.json()
+            console.log('Admin markets loaded:', apiMarkets.length)
             
             // Transform API data to match expected format
             const transformedMarkets = apiMarkets.map((market: any) => ({
               ...market,
-              categories: market.categories ? market.categories.split(",").map((c: string) => c.trim()).filter((c: string) => c) : [],
+              categories: market.categories ? market.categories.split(",").map((c: string) => c.trim()).filter((c: string) => c) : ['Supermercado'],
               reviews: market.reviews || 0,
-              estimatedTime: market.estimatedTime || "N/A",
-              coordinates: market.coordinates || { lat: 0, lng: 0 },
+              estimatedTime: market.estimatedTime || (market.distance ? `${Math.round(market.distance / 25 * 60)} min` : "5 min"),
+              coordinates: market.coordinates || { lat: market.latitude || 0, lng: market.longitude || 0 },
             }))
             
             setMarkets(transformedMarkets)
           } else {
             console.error('Failed to load markets')
-            setMarkets(mockMarkets)
+            setMarkets([])
           }
         } catch (error) {
           console.error('Error loading markets:', error)
-          setMarkets(mockMarkets)
+          setMarkets([])
+        } finally {
+          setIsLoadingAllMarkets(false)
         }
       }
       loadMarkets()
     } else {
       // Regular users see nearby markets from location hook
+      console.log('Setting nearbyMarkets:', nearbyMarkets)
       setMarkets(nearbyMarkets)
     }
   }, [user, nearbyMarkets])
@@ -182,13 +119,24 @@ export default function MercadosPage() {
 
     try {
       const coords = await geocodeAddress(searchAddress)
-      if (coords && user?.role !== 'ADMIN') {
-        // For regular users, update with markets sorted by distance from searched address
-        const response = await fetch('/api/market')
-        if (response.ok) {
-          const apiMarkets = await response.json()
-          const sortedMarkets = sortMarketsByDistance(apiMarkets, coords.lat, coords.lng)
-          setMarkets(sortedMarkets.slice(0, 10)) // Show top 10 nearest
+      if (coords) {
+        if (user?.role === 'ADMIN') {
+          // For admin users, load all markets and sort by actual driving distance
+          const response = await fetch('/api/market')
+          if (response.ok) {
+            const apiMarkets = await response.json()
+            const sortedMarkets = await sortMarketsByDrivingDistance(apiMarkets, coords.lat, coords.lng)
+            setMarkets(sortedMarkets.slice(0, 20)) // Show top 20 nearest
+          }
+        } else {
+          // For regular users, use the nearby API with driving distances
+          const response = await fetch(
+            `/api/market/nearby?lat=${coords.lat}&lng=${coords.lng}&radius=15&limit=20&driving=true`
+          )
+          if (response.ok) {
+            const data = await response.json()
+            setMarkets(data.markets || [])
+          }
         }
       }
     } catch (error) {
@@ -230,9 +178,38 @@ export default function MercadosPage() {
   }
 
   const openInMaps = (market: any) => {
-    // Use the custom Google Maps URL if available, otherwise generate one
-    const url = market.googleMapsUrl || `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(market.address)}`
+    let url = market.googleMapsUrl
+
+    // If we have user location, generate a directions URL
+    if (userLocation) {
+      // Create a directions URL from user location to market
+      const destination = market.latitude && market.longitude 
+        ? `${market.latitude},${market.longitude}`
+        : encodeURIComponent(market.address)
+      
+      url = `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/${destination}`
+    } else if (!url) {
+      // Fallback: just open the market location
+      const destination = market.latitude && market.longitude 
+        ? `${market.latitude},${market.longitude}`
+        : encodeURIComponent(market.address)
+      
+      url = `https://www.google.com/maps/dir/?api=1&destination=${destination}`
+    }
+
     window.open(url, "_blank")
+  }
+
+  const openRouteInOSM = (market: any) => {
+    if (userLocation && market.latitude && market.longitude) {
+      // Open the route in OpenStreetMap (the source of our distance calculation)
+      const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLocation.lat}%2C${userLocation.lng}%3B${market.latitude}%2C${market.longitude}`
+      window.open(url, "_blank")
+    } else {
+      // Fallback: just show the market location
+      const url = `https://www.openstreetmap.org/?mlat=${market.latitude}&mlon=${market.longitude}&zoom=16`
+      window.open(url, "_blank")
+    }
   }
 
   const handleMarketAdded = (newMarket: any) => {
@@ -360,12 +337,12 @@ export default function MercadosPage() {
                   Buscar
                 </Button>
                 <Button
-                  onClick={getCurrentLocation}
-                  disabled={isLoadingLocation}
+                  onClick={() => getCurrentLocation(true)}
+                  disabled={isLoadingLocation || isLoadingMarkets}
                   className="bg-green-600 hover:bg-green-700"
                 >
                   <Locate className="h-4 w-4 mr-2" />
-                  {isLoadingLocation ? "Localizando..." : "Minha Localização"}
+                  {isLoadingLocation ? "Localizando..." : isLoadingMarkets ? "Atualizando..." : "Minha Localização"}
                 </Button>
               </div>
               {userLocation && (
@@ -435,7 +412,7 @@ export default function MercadosPage() {
 
         {/* Markets List */}
         <div className="space-y-4">
-          {isLoadingMarkets ? (
+          {(isLoadingMarkets || isLoadingAllMarkets) ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
               <p className="text-gray-600">Carregando mercados...</p>
@@ -448,9 +425,11 @@ export default function MercadosPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-xl font-semibold">{market.name}</h3>
-                        <Badge variant="secondary" className="bg-green-100 text-green-800">
-                          {market.distance.toFixed(1)} km
-                        </Badge>
+                        {market.distance !== undefined && (
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            {market.distance.toFixed(1)} km
+                          </Badge>
+                        )}
                         <Badge variant="outline">{getPriceLevelText(market.priceLevel)}</Badge>
                       </div>
 
@@ -490,10 +469,23 @@ export default function MercadosPage() {
                           <Phone className="h-4 w-4" />
                           <span>{market.phone || "Telefone não informado"}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Navigation className="h-4 w-4" />
-                          <span>~{market.estimatedTime || "N/A"} de carro</span>
-                        </div>
+                        {market.distance !== undefined && (
+                          <div className="flex items-center gap-1">
+                            <Navigation className="h-4 w-4" />
+                            <button
+                              onClick={() => openRouteInOSM(market)}
+                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              title="Ver rota no OpenStreetMap"
+                            >
+                              ~{market.estimatedTime || (market.distance ? `${Math.round(market.distance / 25 * 60)} min` : "5 min")} de carro
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Accuracy Meter */}
+                      <div className="mt-3">
+                        <AccuracyMeter accuracy={market.accuracy || 75} service={market.service || 'straight-line'} />
                       </div>
                     </div>
 
@@ -547,17 +539,27 @@ export default function MercadosPage() {
           )}
         </div>
 
-        {!isLoadingMarkets && markets.length === 0 && (
+        {!(isLoadingMarkets || isLoadingAllMarkets) && markets.length === 0 && (
           <Card>
             <CardContent className="p-8 text-center">
               <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum mercado encontrado</h3>
-              <p className="text-gray-600">
+              <p className="text-gray-600 mb-4">
                 {isAdmin 
                   ? "Comece adicionando o primeiro mercado ao sistema." 
-                  : "Tente buscar por um endereço diferente ou use sua localização atual."
+                  : "Tente buscar por um endereço diferente, usar sua localização atual ou aumentar o raio de busca."
                 }
               </p>
+              {!isAdmin && !userLocation && (
+                <Button
+                  onClick={() => getCurrentLocation(true)}
+                  disabled={isLoadingLocation || isLoadingMarkets}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <Locate className="h-4 w-4 mr-2" />
+                  {isLoadingLocation ? "Localizando..." : isLoadingMarkets ? "Atualizando..." : "Usar Minha Localização"}
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
