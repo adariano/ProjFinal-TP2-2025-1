@@ -265,7 +265,37 @@ export default function AdminDashboardPage() {
                       <p className="text-xs text-gray-600">{p.category} • R$ {p.price.toFixed(2)}</p>
                       <p className="text-xs text-green-600">Estoque: {p.stock}</p>
                     </div>
-                    <span className={`text-xs px-2 py-1 rounded-full ${p.status === "Ativo" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{p.status}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded-full ${p.status === "Ativo" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{p.status}</span>
+                      {p.status === "Ativo" ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-gray-300 text-gray-700"
+                          onClick={async () => {
+                            await fetch("/api/product", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ name: p.name, status: "Inativo" })
+                            })
+                            setProducts(prev => prev.map(prod => prod.name === p.name ? { ...prod, status: "Inativo" } : prod))
+                          }}
+                        >Desativar</Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={async () => {
+                            await fetch("/api/product", {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ name: p.name, status: "Ativo" })
+                            })
+                            setProducts(prev => prev.map(prod => prod.name === p.name ? { ...prod, status: "Ativo" } : prod))
+                          }}
+                        >Ativar</Button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

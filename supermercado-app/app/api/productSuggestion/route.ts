@@ -28,7 +28,10 @@ export async function PATCH(req) {
       });
     }
 
-    return NextResponse.json(updatedSuggestion);
+    // Exclui sugestão após aprovação ou rejeição
+    await prisma.productSuggestion.delete({ where: { id } });
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: "Erro ao atualizar sugestão" }, { status: 500 });
   }
@@ -68,6 +71,11 @@ export async function POST(req) {
         submittedEmail,
         status: status || "pending"
       }
+    });
+    // Incrementa pontos do usuário ao sugerir produto
+    await prisma.user.update({
+      where: { email: submittedEmail },
+      data: { points: { increment: 15 } }
     });
     return NextResponse.json(suggestion, { status: 201 });
   } catch (error) {

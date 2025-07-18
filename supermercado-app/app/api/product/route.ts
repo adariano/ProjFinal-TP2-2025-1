@@ -1,3 +1,21 @@
+// Handler para PATCH /api/product
+export async function PATCH(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { name, status } = body;
+    if (!name || !status) {
+      return NextResponse.json({ error: 'Nome e status são obrigatórios' }, { status: 400 });
+    }
+    const updated = await prisma.product.updateMany({
+      where: { name },
+      data: { status },
+    });
+    return NextResponse.json({ success: true, updated });
+  } catch (error) {
+    console.error('Error updating product status:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
@@ -5,6 +23,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
+      where: { status: "Ativo" },
       include: {
         items: {
           include: {
@@ -13,7 +32,6 @@ export async function GET() {
         },
       },
     });
-    
     // Transform the data to match the expected frontend format
     const transformedProducts = products.map(product => ({
       id: product.id,
@@ -22,8 +40,8 @@ export async function GET() {
       brand: product.brand,
       avgPrice: product.avgPrice,
       lastUpdate: product.lastUpdate.toISOString(),
+      status: product.status,
     }));
-    
     return NextResponse.json(transformedProducts);
   } catch (error) {
     console.error('Error fetching products:', error);

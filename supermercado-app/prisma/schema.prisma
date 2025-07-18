@@ -37,6 +37,7 @@ model Product {
   brand       String
   avgPrice    Float
   lastUpdate  DateTime  @default(now())
+  status      String    @default("Ativo")
   items       ShoppingListItem[]
   priceReports PriceReport[]
 }
