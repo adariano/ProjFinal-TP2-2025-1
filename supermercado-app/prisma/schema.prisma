@@ -23,6 +23,7 @@ model User {
   points         Int             @default(0)
   createdAt      DateTime        @default(now())
   photoUrl       String?         // URL da foto de perfil
+  status         String          @default("Ativo")
   shoppingLists  ShoppingList[]  @relation("UserShoppingLists")
   collectedItems ShoppingListItem[] @relation("UserCollectedItems")
   reviewedLists  ShoppingList[]    @relation("UserReviewedLists")

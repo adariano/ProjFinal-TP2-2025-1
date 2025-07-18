@@ -11,6 +11,7 @@ async function createUsersWithSimplePasswords() {
       cpf: "12345678901",
       password: "123456", // Senha simples para teste
       role: "USER" as const,
+      status: "Ativo",
     },
     {
       name: "Maria Santos", 
@@ -18,6 +19,7 @@ async function createUsersWithSimplePasswords() {
       cpf: "23456789012",
       password: "123456",
       role: "USER" as const,
+      status: "Ativo",
     },
     {
       name: "Administrador",
@@ -25,13 +27,15 @@ async function createUsersWithSimplePasswords() {
       cpf: "34567890123",
       password: "admin123",
       role: "ADMIN" as const,
+      status: "Ativo",
     },
     {
       name: "Ana Costa",
       email: "ana.costa@email.com",
       cpf: "45678901234", 
       password: "123456",
-      role: "USER" as const,
+      role: "ADMIN" as const,
+      status: "Ativo",
     },
   ];
   return userData;
