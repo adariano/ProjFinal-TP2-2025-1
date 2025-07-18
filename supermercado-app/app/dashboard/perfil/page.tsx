@@ -33,8 +33,18 @@ export default function PerfilPage() {
           const profileData = await response.json()
           setProfile(profileData)
         } else {
-          console.error('Error fetching profile:', response.statusText)
-          // Set a basic profile structure if API fails
+          const errorData = await response.json().catch(() => ({}))
+          console.error('Error fetching profile:', response.statusText, errorData)
+          
+          // If user not found, clear localStorage and redirect to login
+          if (response.status === 404) {
+            console.log('User not found in database. Clearing localStorage and redirecting to login.')
+            localStorage.removeItem('user')
+            router.push('/login')
+            return
+          }
+          
+          // For other errors, set a basic profile structure
           setProfile({
             name: parsedUser.name || 'Usuário',
             email: parsedUser.email || '',
@@ -56,6 +66,16 @@ export default function PerfilPage() {
         }
       } catch (error) {
         console.error('Error fetching profile:', error)
+        
+        // Check if this is a network error or user not found
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        if (errorMessage.includes('Not Found') || errorMessage.includes('404')) {
+          console.log('User not found in database. Clearing localStorage and redirecting to login.')
+          localStorage.removeItem('user')
+          router.push('/login')
+          return
+        }
+        
         // Set a basic profile structure if API fails
         setProfile({
           name: parsedUser.name || 'Usuário',

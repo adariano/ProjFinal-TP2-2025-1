@@ -279,7 +279,7 @@ export default function MercadosPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
+        <div className="container mx-auto px-6 py-3">
           <div className="flex items-center justify-between">
             <Link href="/dashboard" className="flex items-center gap-2">
               <ShoppingCart className="h-8 w-8 text-green-600" />
@@ -292,12 +292,12 @@ export default function MercadosPage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-6 py-6">
         {/* Page Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Mercados Próximos</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">Mercados Próximos</h1>
               <p className="text-gray-600">Encontre os melhores mercados na sua região</p>
             </div>
             {isAdmin && (
@@ -314,16 +314,16 @@ export default function MercadosPage() {
 
         {/* Location Search */}
         {!isAdmin && (
-          <Card className="mb-8">
-            <CardHeader>
+          <Card className="mb-6">
+            <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <MapPin className="h-5 w-5" />
                 Localização
               </CardTitle>
               <CardDescription>Use sua localização atual ou busque por um endereço específico</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-4">
+            <CardContent className="space-y-3">
+              <div className="flex gap-3">
                 <div className="flex-1">
                   <Input
                     placeholder="Digite um endereço..."
@@ -362,7 +362,7 @@ export default function MercadosPage() {
 
         {/* Admin Info Card */}
         {isAdmin && (
-          <Card className="mb-8 bg-blue-50 border-blue-200">
+          <Card className="mb-6 bg-blue-50 border-blue-200">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-blue-800">
                 <MapPin className="h-5 w-5" />
@@ -376,8 +376,8 @@ export default function MercadosPage() {
         )}
 
         {/* Filters */}
-        <Card className="mb-6">
-          <CardContent className="p-4">
+        <Card className="mb-5">
+          <CardContent className="p-3">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <Filter className="h-4 w-4 text-gray-600" />
@@ -411,7 +411,7 @@ export default function MercadosPage() {
         </Card>
 
         {/* Markets List */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {(isLoadingMarkets || isLoadingAllMarkets) ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
@@ -420,7 +420,7 @@ export default function MercadosPage() {
           ) : (
             markets.map((market) => (
               <Card key={market.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
+                <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -433,7 +433,7 @@ export default function MercadosPage() {
                         <Badge variant="outline">{getPriceLevelText(market.priceLevel)}</Badge>
                       </div>
 
-                      <div className="flex items-center gap-4 mb-3">
+                      <div className="flex items-center gap-4 mb-2">
                         <div className="flex items-center gap-1">
                           <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                           <span className="font-medium">{market.rating?.toFixed(1) || "N/A"}</span>
@@ -445,12 +445,12 @@ export default function MercadosPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center gap-2 mb-2">
                         <MapPin className="h-4 w-4 text-gray-600" />
                         <span className="text-gray-600">{market.address}</span>
                       </div>
 
-                      <div className="flex items-center gap-2 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
                         {market.categories && market.categories.length > 0 ? (
                           market.categories.map((category: string, index: number) => (
                             <Badge key={index} variant="secondary" className="text-xs">
@@ -464,7 +464,7 @@ export default function MercadosPage() {
                         )}
                       </div>
 
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
                         <div className="flex items-center gap-1">
                           <Phone className="h-4 w-4" />
                           <span>{market.phone || "Telefone não informado"}</span>
@@ -484,7 +484,7 @@ export default function MercadosPage() {
                       </div>
                       
                       {/* Accuracy Meter */}
-                      <div className="mt-3">
+                      <div className="mt-2">
                         <AccuracyMeter accuracy={market.accuracy || 75} service={market.service || 'straight-line'} />
                       </div>
                     </div>
@@ -494,7 +494,7 @@ export default function MercadosPage() {
                         <ExternalLink className="h-4 w-4 mr-2" />
                         Ver Rota
                       </Button>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
                         <Button 
                           variant="outline" 
                           size="sm"
