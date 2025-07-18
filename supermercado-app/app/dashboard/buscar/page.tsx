@@ -118,7 +118,8 @@ export default function BuscarProdutoPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("Todos")
   const [sortBy, setSortBy] = useState("relevance")
-  const [filteredProducts, setFilteredProducts] = useState(mockProducts)
+  const [allProducts, setAllProducts] = useState([])
+  const [filteredProducts, setFilteredProducts] = useState([])
   const router = useRouter()
 
   const searchParams = useSearchParams()
@@ -140,8 +141,16 @@ export default function BuscarProdutoPage() {
   }, [router])
 
   useEffect(() => {
-    let filtered = mockProducts
+    async function fetchProducts() {
+      const res = await fetch("/api/product")
+      const data = await res.json()
+      setAllProducts(data)
+    }
+    fetchProducts()
+  }, [])
 
+  useEffect(() => {
+    let filtered = allProducts
     // Filter by search term
     if (searchTerm) {
       filtered = filtered.filter(
@@ -151,33 +160,30 @@ export default function BuscarProdutoPage() {
           product.category.toLowerCase().includes(searchTerm.toLowerCase()),
       )
     }
-
     // Filter by category
     if (selectedCategory !== "Todos") {
       filtered = filtered.filter((product) => product.category === selectedCategory)
     }
-
     // Sort products
     switch (sortBy) {
       case "price-low":
-        filtered.sort((a, b) => a.bestPrice - b.bestPrice)
+        filtered = [...filtered].sort((a, b) => (a.bestPrice ?? a.avgPrice) - (b.bestPrice ?? b.avgPrice))
         break
       case "price-high":
-        filtered.sort((a, b) => b.bestPrice - a.bestPrice)
+        filtered = [...filtered].sort((a, b) => (b.bestPrice ?? b.avgPrice) - (a.bestPrice ?? a.avgPrice))
         break
       case "rating":
-        filtered.sort((a, b) => b.rating - a.rating)
+        filtered = [...filtered].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
         break
       case "name":
-        filtered.sort((a, b) => a.name.localeCompare(b.name))
+        filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name))
         break
       default:
         // relevance - keep original order
         break
     }
-
     setFilteredProducts(filtered)
-  }, [searchTerm, selectedCategory, sortBy])
+  }, [searchTerm, selectedCategory, sortBy, allProducts])
 
   if (!user) {
     return <div>Carregando...</div>
@@ -300,18 +306,18 @@ export default function BuscarProdutoPage() {
                             <span className="text-sm font-medium text-green-800">Melhor Preço</span>
                             <div className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-green-600" />
-                              <span className="text-xs text-green-600">{product.bestMarket}</span>
+                              <span className="text-xs text-green-600">{product.bestMarket ?? "-"}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-2xl font-bold text-green-600">R$ {product.bestPrice.toFixed(2)}</span>
-                            {product.avgPrice > product.bestPrice && (
-                              <span className="text-sm text-gray-500 line-through">R$ {product.avgPrice.toFixed(2)}</span>
+                            <span className="text-2xl font-bold text-green-600">R$ {(product.bestPrice ?? product.avgPrice ?? 0).toFixed(2)}</span>
+                            {(product.avgPrice ?? 0) > (product.bestPrice ?? product.avgPrice ?? 0) && (
+                              <span className="text-sm text-gray-500 line-through">R$ {(product.avgPrice ?? 0).toFixed(2)}</span>
                             )}
                           </div>
-                          {product.avgPrice > product.bestPrice && (
+                          {(product.avgPrice ?? 0) > (product.bestPrice ?? product.avgPrice ?? 0) && (
                             <p className="text-xs text-green-600 mt-1">
-                              Economia de R$ {(product.avgPrice - product.bestPrice).toFixed(2)}
+                              Economia de R$ {((product.avgPrice ?? 0) - (product.bestPrice ?? product.avgPrice ?? 0)).toFixed(2)}
                             </p>
                           )}
                         </div>

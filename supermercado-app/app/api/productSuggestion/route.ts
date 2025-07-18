@@ -24,6 +24,7 @@ export async function PATCH(req) {
           brand: updatedSuggestion.brand,
           category: updatedSuggestion.category,
           avgPrice: updatedSuggestion.estimatedPrice || 0,
+          status: "Ativo", // garante que o produto entre como ativo
         },
       });
     }

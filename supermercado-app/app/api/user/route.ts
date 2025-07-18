@@ -1,3 +1,28 @@
+// PATCH - Ativa ou desativa usuário (exceto admin)
+export async function PATCH(req: Request) {
+  try {
+    const body = await req.json();
+    const { id, status } = body;
+    if (!id || !status) {
+      return NextResponse.json({ error: 'ID e novo status são obrigatórios' }, { status: 400 });
+    }
+    // Busca usuário
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+    }
+    if (user.role === 'ADMIN') {
+      return NextResponse.json({ error: 'Não é permitido desativar/ativar um admin' }, { status: 403 });
+    }
+    const updated = await prisma.user.update({
+      where: { id },
+      data: { status },
+    });
+    return NextResponse.json({ success: true, updated });
+  } catch (error) {
+    return NextResponse.json({ error: 'Erro ao atualizar usuário' }, { status: 500 });
+  }
+}
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 

@@ -3,10 +3,23 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { UserMenu } from "@/components/user-menu"
 import { Users, Package, List, AlertCircle, Search } from "lucide-react"
 import Link from "next/link"
+
+const categories = [
+  "Grãos",
+  "Laticínios",
+  "Carnes",
+  "Frutas",
+  "Verduras",
+  "Padaria",
+  "Limpeza",
+  "Bebidas",
+  "Higiene",
+]
 
 export default function AdminDashboardPage() {
   const [user, setUser] = useState<any>(null)
@@ -26,6 +39,22 @@ export default function AdminDashboardPage() {
   const [recentActivity, setRecentActivity] = useState<any[]>([])
   const [searchUser, setSearchUser] = useState("")
   const [searchProduct, setSearchProduct] = useState("")
+  const [showAddProduct, setShowAddProduct] = useState(false)
+  const [newProduct, setNewProduct] = useState({
+    name: "",
+    category: categories[0],
+    brand: "",
+    price: "",
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [newUser, setNewUser] = useState({
+    name: "",
+    email: "",
+    cpf: "",
+    password: "",
+  })
+  const [isUserSubmitting, setIsUserSubmitting] = useState(false)
 
   useEffect(() => {
     // Busca o usuário do localStorage para usar a mesma foto do dashboard comum
@@ -46,23 +75,31 @@ export default function AdminDashboardPage() {
         const usersData = usersRes.ok ? await usersRes.json() : []
         const totalLists = usersData.reduce((acc: number, u: any) => acc + (u.shoppingLists?.length || 0), 0)
         setUsers(usersData.map((u: any) => ({
+          id: u.id,
           name: u.name,
           email: u.email,
           lists: u.shoppingLists?.length || 0,
           points: u.points || 0,
-          status: "Ativo", // ajuste conforme necessário
+          status: u.status || "Ativo",
+          role: u.role || "USER"
         })))
 
         // Produtos
         const productsRes = await fetch("/api/product")
         const productsData = productsRes.ok ? await productsRes.json() : []
         setProducts(productsData.map((p: any) => ({
+          id: p.id,
           name: p.name,
           category: p.category,
           price: p.avgPrice || 0,
           stock: p.stock || 0,
-          status: "Ativo", // ajuste conforme necessário
+          status: p.status || "Ativo",
+          lastUpdate: p.lastUpdate
         })))
+
+        // Listas de compras
+        const listsRes = await fetch("/api/shopping_list")
+        const listsData = listsRes.ok ? await listsRes.json() : []
 
         // Stats
         let statsRes = null
@@ -87,14 +124,37 @@ export default function AdminDashboardPage() {
           requestsGrowth: 0,
         })
 
-        // Preços Recentes (usado como exemplo de atividade)
-        const recentRes = await fetch("/api/price_reports/recent")
-        const recentData = recentRes.ok ? await recentRes.json() : []
-        setRecentActivity(recentData.map((r: any) => ({
-          type: "product",
-          text: `Preço informado: ${r.name} em ${r.market}`,
-          time: r.date,
-        })))
+        // Atividades recentes: produtos, usuários e listas
+        const recentProducts = productsData
+          .sort((a: any, b: any) => new Date(b.lastUpdate).getTime() - new Date(a.lastUpdate).getTime())
+          .slice(0, 5)
+          .map((p: any) => ({
+            type: "product",
+            text: `Produto adicionado: ${p.name}`,
+            time: p.lastUpdate ? new Date(p.lastUpdate).toLocaleDateString() : ""
+          }))
+
+        const recentUsers = usersData
+          .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .slice(0, 5)
+          .map((u: any) => ({
+            type: "user",
+            text: `Novo usuário: ${u.name}`,
+            time: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : ""
+          }))
+
+        const recentLists = Array.isArray(listsData)
+          ? listsData
+            .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            .slice(0, 5)
+            .map((l: any) => ({
+              type: "list",
+              text: `Lista criada: ${l.name}`,
+              time: l.createdAt ? new Date(l.createdAt).toLocaleDateString() : ""
+            }))
+          : []
+
+        setRecentActivity([...recentProducts, ...recentUsers, ...recentLists])
 
         setPendingRequests(suggestionsData.map((s: any) => ({
           id: s.id,
@@ -210,7 +270,54 @@ export default function AdminDashboardPage() {
             <CardContent>
               <div className="mb-4 flex gap-2">
                 <Input placeholder="Buscar usuários por nome ou email..." value={searchUser} onChange={e => setSearchUser(e.target.value)} />
-                <Button>+ Novo Usuário</Button>
+                <Button onClick={() => setShowAddUser(true)}>+ Novo Usuário</Button>
+                {showAddUser && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+                      <h2 className="text-xl font-bold mb-4">Adicionar Novo Usuário</h2>
+                      <div className="space-y-3 mb-4">
+                        <Input placeholder="Nome" value={newUser?.name || ""} onChange={e => setNewUser(p => ({ ...p, name: e.target.value }))} />
+                        <Input placeholder="Email" value={newUser?.email || ""} onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))} />
+                        <Input placeholder="CPF" value={newUser?.cpf || ""} onChange={e => setNewUser(p => ({ ...p, cpf: e.target.value }))} />
+                        <Input type="password" placeholder="Senha" value={newUser?.password || ""} onChange={e => setNewUser(p => ({ ...p, password: e.target.value }))} />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="outline" onClick={() => setShowAddUser(false)}>Cancelar</Button>
+                        <Button
+                          disabled={isUserSubmitting || !newUser?.name || !newUser?.email || !newUser?.cpf || !newUser?.password}
+                          onClick={async () => {
+                            setIsUserSubmitting(true)
+                            const res = await fetch("/api/user", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                name: newUser.name,
+                                email: newUser.email,
+                                cpf: newUser.cpf,
+                                password: newUser.password
+                              })
+                            })
+                            if (res.ok) {
+                              const user = await res.json()
+                              setUsers(prev => [...prev, {
+                                name: user.name,
+                                email: user.email,
+                                lists: 0,
+                                points: 0,
+                                status: "Ativo"
+                              }])
+                              setShowAddUser(false)
+                              setNewUser({ name: "", email: "", cpf: "", password: "" })
+                            } else {
+                              alert("Erro ao adicionar usuário")
+                            }
+                            setIsUserSubmitting(false)
+                          }}
+                        >Salvar</Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 {users.filter(u => u.name.toLowerCase().includes(searchUser.toLowerCase()) || u.email.toLowerCase().includes(searchUser.toLowerCase())).map((u, idx) => (
@@ -223,6 +330,36 @@ export default function AdminDashboardPage() {
                       <span className="text-xs text-gray-600">{u.lists} listas</span>
                       <span className="text-xs text-gray-600">{u.points} pontos</span>
                       <span className={`text-xs px-2 py-1 rounded-full ${u.status === "Ativo" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}>{u.status}</span>
+                      {u.role !== "ADMIN" && (
+                        u.status === "Ativo" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-gray-300 text-gray-700"
+                            onClick={async () => {
+                              await fetch("/api/user", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: u.id, status: "Inativo" })
+                              })
+                              setUsers(prev => prev.map(user => user.email === u.email ? { ...user, status: "Inativo" } : user))
+                            }}
+                          >Desativar</Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={async () => {
+                              await fetch("/api/user", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ id: u.id, status: "Ativo" })
+                              })
+                              setUsers(prev => prev.map(user => user.email === u.email ? { ...user, status: "Ativo" } : user))
+                            }}
+                          >Ativar</Button>
+                        )
+                      )}
                     </div>
                   </div>
                 ))}
@@ -255,7 +392,65 @@ export default function AdminDashboardPage() {
             <CardContent>
               <div className="mb-4 flex gap-2">
                 <Input placeholder="Buscar produtos..." value={searchProduct} onChange={e => setSearchProduct(e.target.value)} />
-                <Button>+ Novo Produto</Button>
+                <Button onClick={() => setShowAddProduct(true)}>+ Novo Produto</Button>
+                {showAddProduct && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+                    <div className="bg-white rounded-lg shadow-lg p-8 w-full max-w-md">
+                      <h2 className="text-xl font-bold mb-4">Adicionar Novo Produto</h2>
+                      <div className="space-y-3 mb-4">
+                        <Input placeholder="Nome" value={newProduct.name} onChange={e => setNewProduct(p => ({ ...p, name: e.target.value }))} />
+                        <div>
+                          <Select value={newProduct.category} onValueChange={val => setNewProduct(p => ({ ...p, category: val }))}>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Selecione a categoria" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {categories.map(cat => (
+                                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Input placeholder="Marca" value={newProduct.brand} onChange={e => setNewProduct(p => ({ ...p, brand: e.target.value }))} />
+                        <Input type="number" min={0} step={0.01} placeholder="Preço médio" value={newProduct.price} onChange={e => setNewProduct(p => ({ ...p, price: e.target.value }))} />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button variant="outline" onClick={() => setShowAddProduct(false)}>Cancelar</Button>
+                        <Button
+                          disabled={isSubmitting || !newProduct.name || !newProduct.category || !newProduct.brand || !newProduct.price}
+                          onClick={async () => {
+                            setIsSubmitting(true)
+                            const res = await fetch("/api/product", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                name: newProduct.name,
+                                category: newProduct.category,
+                                brand: newProduct.brand,
+                                avgPrice: Number(newProduct.price)
+                              })
+                            })
+                            if (res.ok) {
+                              const prod = await res.json()
+                              setProducts(prev => [...prev, {
+                                name: prod.name,
+                                category: prod.category,
+                                price: prod.avgPrice,
+                                stock: 0,
+                                status: "Ativo"
+                              }])
+                              setShowAddProduct(false)
+                              setNewProduct({ name: "", category: categories[0], brand: "", price: "" })
+                            } else {
+                              alert("Erro ao adicionar produto")
+                            }
+                            setIsSubmitting(false)
+                          }}
+                        >Salvar</Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 {products.filter(p => p.name.toLowerCase().includes(searchProduct.toLowerCase())).map((p, idx) => (
