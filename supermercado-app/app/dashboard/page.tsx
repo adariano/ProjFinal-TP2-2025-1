@@ -262,65 +262,56 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-4">
-              {activeLists.map((list) => (
-                <Link key={list.id} href={`/dashboard/lista/${list.id}`}>
-                  <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-gray-50">
-                    <CardContent className="p-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-lg">{list.name}</h3>
-                            {list.completed === list.items && (
-                              <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                Concluída
-                              </Badge>
-                            )}
-                            {list.actualTotal && (
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                                Salva
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span>
-                              {list.completed}/{list.items} itens
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-4 w-4" />
-                              {new Date(list.date).toLocaleDateString("pt-BR")}
-                            </span>
-                          </div>
-                          <div className="mt-2">
-                            <p className="text-sm text-gray-600">
-                              {list.items} itens • Criada em {new Date(list.date).toLocaleDateString("pt-BR")}
-                            </p>
-                            {list.actualTotal && (
-                              <p className="text-sm text-green-600 font-medium">
-                                Economia: R$ {(list.estimatedTotal - list.actualTotal).toFixed(2)}
+              {userLists.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista salva ainda.</p>
+              ) : (
+                userLists.map((list: any) => {
+                  let createdAt = list.createdAt || list.date || null;
+                  let dateStr = createdAt ? new Date(createdAt).toLocaleDateString("pt-BR") : "";
+                  let estimatedTotal = Array.isArray(list.items)
+                    ? list.items.reduce((sum: number, item: any) => {
+                        const price = item.actualPrice ?? item.price ?? item.product?.avgPrice ?? 0;
+                        return sum + (item.quantity * price);
+                      }, 0)
+                    : 0;
+                  return (
+                    <Link key={list.id} href={`/dashboard/lista/${list.id}`}>
+                      <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-gray-50">
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-semibold text-lg">{list.name}</h3>
+                                {list.completed === list.items?.length && (
+                                  <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                    Concluída
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-gray-600">
+                                <span>
+                                  {list.items?.length ?? 0} itens
+                                </span>
+                                {dateStr && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="h-4 w-4" />
+                                    {dateStr}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right ml-4">
+                              <p className="text-lg font-bold text-green-600">
+                                R$ {estimatedTotal.toFixed(2)}
                               </p>
-                            )}
+                              <p className="text-sm text-gray-600">estimado</p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="text-right ml-4">
-                          <p className="text-lg font-bold text-green-600">
-                            R$ {(list.actualTotal || list.estimatedTotal).toFixed(2)}
-                          </p>
-                          <p className="text-sm text-gray-600">{list.actualTotal ? "gasto real" : "estimado"}</p>
-                          {list.completed === list.items && !list.actualTotal && (
-                            <Link href="/dashboard/lista-finalizada">
-                              <Button size="sm" className="mt-2 bg-green-600 hover:bg-green-700">
-                                Ver Mercados
-                              </Button>
-                            </Link>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-              {activeLists.length === 0 && (
-                <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista ativa no momento.</p>
+                        </CardContent>
+                      </Card>
+                    </Link>
+                  );
+                })
               )}
             </div>
 
