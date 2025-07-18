@@ -35,12 +35,12 @@ describe('ShoppingList model TDD', () => {
   it('should create a shopping list with valid data', async () => {
     const user = await prisma.user.create({
       data: {
-        name: 'Maria',
-        email: 'maria@test.com',
-        cpf: '987.654.321-00',
-      },
+        name: "Maria",
+        email: "maria@test.com",
+        cpf: "987.654.321-00",
+        password: "123456"
+      }
     })
-
     const list = await prisma.shoppingList.create({
       data: {
         name: 'Weekly Groceries',

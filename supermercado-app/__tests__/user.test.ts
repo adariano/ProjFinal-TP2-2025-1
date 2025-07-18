@@ -33,12 +33,12 @@ describe('User model TDD', () => {
   it('should create a user with valid data', async () => {
     const user = await prisma.user.create({
       data: {
-        name: 'João',
-        email: 'joao@email.com',
-        cpf: '123.456.789-00',
-      },
+        name: "João",
+        email: "joao@email.com",
+        cpf: "123.456.789-00",
+        password: "123456"
+      }
     })
-
     expect(user).toMatchObject({
       name: 'João',
       email: 'joao@email.com',

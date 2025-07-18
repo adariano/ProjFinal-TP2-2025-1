@@ -304,9 +304,9 @@ export default function BuscarProdutoPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-2xl font-bold text-green-600">R$ {product.bestPrice}</span>
+                            <span className="text-2xl font-bold text-green-600">R$ {product.bestPrice.toFixed(2)}</span>
                             {product.avgPrice > product.bestPrice && (
-                              <span className="text-sm text-gray-500 line-through">R$ {product.avgPrice}</span>
+                              <span className="text-sm text-gray-500 line-through">R$ {product.avgPrice.toFixed(2)}</span>
                             )}
                           </div>
                           {product.avgPrice > product.bestPrice && (

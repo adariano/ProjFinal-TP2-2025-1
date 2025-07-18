@@ -34,9 +34,36 @@ async function createUsersWithSimplePasswords() {
       role: "USER" as const,
     },
   ];
-
   return userData;
 }
+
+// Dados de sugestões de produtos para testes do dashboard admin
+const productSuggestions = [
+  {
+    name: "Açúcar Cristal União 1kg",
+    brand: "União",
+    category: "Grãos",
+    description: "Açúcar cristal especial da marca União, embalagem de 1kg",
+    estimatedPrice: 4.2,
+    barcode: "7891234567890",
+    reason: "Produto muito procurado pelos usuários, mas não está no catálogo",
+    submittedBy: "Carlos Lima",
+    submittedEmail: "carlos@email.com",
+    status: "pending",
+  },
+  {
+    name: "Farinha de Trigo Dona Benta 1kg",
+    brand: "Dona Benta",
+    category: "Grãos",
+    description: "Farinha de trigo especial para pães e bolos",
+    estimatedPrice: 5.5,
+    barcode: "7891234567891",
+    reason: "Usuários pedem para receitas caseiras",
+    submittedBy: "Ana Souza",
+    submittedEmail: "ana@email.com",
+    status: "pending",
+  },
+];
 
 // Dados de produtos
 const productData: Prisma.ProductCreateInput[] = [
@@ -577,8 +604,17 @@ export async function main() {
     },
   });
 
-  console.log("3 listas de compras criadas com itens.");
 
+  // Criar sugestões de produtos (mock para dashboard admin)
+  console.log("Criando sugestões de produtos...");
+  for (const suggestion of productSuggestions) {
+    await prisma.productSuggestion?.create?.({
+      data: suggestion,
+    });
+  }
+  console.log("Sugestões de produtos criadas.");
+
+  console.log("3 listas de compras criadas com itens.");
   console.log("Seed concluído com sucesso!");
 }
 

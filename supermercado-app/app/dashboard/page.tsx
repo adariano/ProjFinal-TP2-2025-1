@@ -102,7 +102,9 @@ export default function DashboardPage() {
           const history = lists.filter((list: ShoppingList) => list.status === "completed")
           
           setActiveLists(active)
-          setHistoryLists(history)
+          // Ordena todas as listas do usuário por data de criação decrescente e pega as 3 mais recentes
+          const allLists = lists.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          setHistoryLists(allLists.slice(0, 3))
         }
 
         if (statsResponse.ok) {
@@ -112,7 +114,9 @@ export default function DashboardPage() {
 
         if (recentProductsResponse.ok) {
           const recentProductsData: RecentProduct[] = await recentProductsResponse.json()
-          setRecentProducts(recentProductsData)
+          // Ordena por data decrescente e pega os 3 mais recentes
+          const sortedProducts = recentProductsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          setRecentProducts(sortedProducts.slice(0, 3))
         }
       } catch (error) {
         console.error("Error fetching data:", error)

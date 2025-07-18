@@ -97,7 +97,28 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(shoppingLists);
+    // Adiciona os totais calculados em cada lista
+    const listsWithTotals = shoppingLists.map(list => {
+      // Valor estimado: soma dos avgPrice dos produtos x quantidade
+      const estimatedTotal = list.items.reduce((sum, item) => {
+        const price = item.product?.avgPrice || 0;
+        return sum + price * item.quantity;
+      }, 0);
+      // Valor real: soma dos actualPrice dos itens coletados, se existir
+      const actualTotal = list.items.reduce((sum, item) => {
+        if (item.collected && item.actualPrice) {
+          return sum + item.actualPrice * item.quantity;
+        }
+        return sum;
+      }, 0);
+      return {
+        ...list,
+        estimatedTotal,
+        actualTotal: actualTotal > 0 ? actualTotal : undefined,
+      };
+    });
+
+    return NextResponse.json(listsWithTotals);
   } catch (error) {
     console.error("Falha ao buscar listas de compras:", error);
     return NextResponse.json(

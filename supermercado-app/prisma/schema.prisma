@@ -133,6 +133,22 @@ model Review {
   @@index([marketId])
 }
 
+
+model ProductSuggestion {
+  id             Int      @id @default(autoincrement())
+  name           String
+  brand          String
+  category       String
+  description    String
+  estimatedPrice Float?
+  barcode        String?
+  reason         String?
+  submittedBy    String
+  submittedEmail String
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+}
+
 enum Role {
   USER
   ADMIN

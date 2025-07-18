@@ -49,7 +49,12 @@ describe('ShoppingListItem model TDD', () => {
   it('should create an item with valid data', async () => {
     // create necessary parent records
     const user = await prisma.user.create({
-      data: { name: 'Ana', email: 'ana@test.com', cpf: '111.222.333-44' },
+      data: {
+        name: 'Ana',
+        email: 'ana@test.com',
+        cpf: '111.222.333-44',
+        password: '123456'
+      }
     })
     const product = await prisma.product.create({
       data: { name: 'Milk', category: 'Dairy', brand: 'BrandY', avgPrice: 3.5 },
