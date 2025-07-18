@@ -57,43 +57,34 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { id, quantity, purchased, action } = body;
+    const { id, action } = body;
 
     if (!id) {
-      return NextResponse.json({ error: "ID do item é obrigatório" }, { status: 400 });
+      return NextResponse.json(
+        { error: "ID do item é obrigatório" },
+        { status: 400 }
+      );
     }
 
-    if (action === "updateQuantity") {
-      if (quantity == null) {
-        return NextResponse.json({ error: "Quantidade é obrigatória" }, { status: 400 });
-      }
-
+    // Atualizar item conforme a ação
+    if (action === "collect") {
       const updatedItem = await prisma.shoppingListItem.update({
         where: { id },
-        data: { quantity },
+        data: { 
+          collected: true
+        },
         include: { shoppingList: true, product: true },
       });
-
-      return NextResponse.json(updatedItem);
-    }
-
-    if (action === "updatePurchased") {
-      if (purchased == null) {
-        return NextResponse.json({ error: "Status de compra é obrigatório" }, { status: 400 });
-      }
-
-      const updatedItem = await prisma.shoppingListItem.update({
-        where: { id },
-        data: { },
-        include: { shoppingList: true, product: true },
-      });
-
+      
       return NextResponse.json(updatedItem);
     }
 
     return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ error: "Erro ao atualizar item" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Erro ao atualizar item" },
+      { status: 500 }
+    );
   }
 }
 

@@ -5,7 +5,7 @@ import { prisma } from "../../../lib/prisma";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, userId } = body;
+    const { name, userId, items, status } = body;
 
     if (!name || !userId) {
       return NextResponse.json(
@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         userId,
+        status: status || 'active',
       },
       include: {
         items: {
@@ -58,8 +59,8 @@ export async function GET(req: NextRequest) {
         include: {
           items: {
             include: {
-              product: true
-            }
+              product: true,
+            },
           },
           user: {
             select: {
@@ -83,8 +84,8 @@ export async function GET(req: NextRequest) {
       include: {
         items: {
           include: {
-            product: true
-          }
+            product: true,
+          },
         },
         user: {
           select: {

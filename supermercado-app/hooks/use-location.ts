@@ -45,8 +45,63 @@ export function useLocation(): UseLocationReturn {
         localStorage.setItem('userLocation', JSON.stringify(location))
       },
       (error) => {
-        console.error('Error getting location:', error)
-        setLocationError('Erro ao obter localização')
+        // Handle geolocation errors silently to avoid console noise
+        let errorMessage = 'Erro ao obter localização'
+        
+        try {
+          // Check if error has a valid structure
+          if (error && typeof error === 'object' && error.code !== undefined) {
+            switch (Number(error.code)) {
+              case 1: // PERMISSION_DENIED
+                errorMessage = 'PERMISSION_DENIED'
+                // Clear saved location when permission is denied
+                localStorage.removeItem('userLocation')
+                setUserLocation(null)
+                setNearbyMarkets([])
+                break
+              case 2: // POSITION_UNAVAILABLE
+                errorMessage = 'Localização indisponível'
+                break
+              case 3: // TIMEOUT
+                errorMessage = 'Tempo esgotado'
+                break
+              default:
+                errorMessage = 'Erro desconhecido'
+            }
+          } else if (error && typeof error === 'object' && error.message) {
+            // Try to parse the error message
+            if (error.message.includes('denied') || error.message.includes('permission')) {
+              errorMessage = 'PERMISSION_DENIED'
+              // Clear saved location when permission is denied
+              localStorage.removeItem('userLocation')
+              setUserLocation(null)
+              setNearbyMarkets([])
+            } else if (error.message.includes('timeout')) {
+              errorMessage = 'Tempo esgotado'
+            } else if (error.message.includes('unavailable')) {
+              errorMessage = 'Localização indisponível'
+            } else {
+              errorMessage = 'Erro ao acessar localização'
+            }
+          } else {
+            // Fallback for empty, null, or unexpected error structure
+            // This commonly happens when user denies location permission
+            errorMessage = 'PERMISSION_DENIED'
+            // Clear saved location when permission is denied
+            localStorage.removeItem('userLocation')
+            setUserLocation(null)
+            setNearbyMarkets([])
+          }
+        } catch (parseError) {
+          // Default to permission denied on parsing errors
+          errorMessage = 'PERMISSION_DENIED'
+          // Clear saved location when permission is denied
+          localStorage.removeItem('userLocation')
+          setUserLocation(null)
+          setNearbyMarkets([])
+        }
+        
+        setLocationError(errorMessage)
         setIsLoadingLocation(false)
       },
       {

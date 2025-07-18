@@ -9,75 +9,10 @@ import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, Star, Trophy, Target, TrendingUp, Award, Calendar, DollarSign } from "lucide-react"
 import Link from "next/link"
 
-// Mock user profile data
-const mockUserProfile = {
-  name: "João Silva",
-  email: "joao@email.com",
-  joinDate: "2024-12-15",
-  level: "Colaborador Ativo",
-  nextLevel: "Expert",
-  totalPoints: 247,
-  pointsToNextLevel: 53,
-  stats: {
-    pricesReported: 15,
-    productsReviewed: 8,
-    productsSuggested: 3,
-    listsCreated: 12,
-    totalSavings: 145.5,
-  },
-  achievements: [
-    {
-      id: 1,
-      title: "Primeiro Preço",
-      description: "Informou seu primeiro preço",
-      icon: "🎯",
-      earned: true,
-      date: "2024-12-16",
-    },
-    {
-      id: 2,
-      title: "Colaborador",
-      description: "Informou 10 preços",
-      icon: "🤝",
-      earned: true,
-      date: "2024-12-20",
-    },
-    {
-      id: 3,
-      title: "Avaliador",
-      description: "Fez 5 avaliações de produtos",
-      icon: "⭐",
-      earned: true,
-      date: "2024-12-25",
-    },
-    {
-      id: 4,
-      title: "Expert",
-      description: "Informou 50 preços",
-      icon: "🏆",
-      earned: false,
-      date: null,
-    },
-    {
-      id: 5,
-      title: "Economizador",
-      description: "Economizou R$ 100",
-      icon: "💰",
-      earned: true,
-      date: "2025-01-10",
-    },
-  ],
-  recentActivity: [
-    { action: "Informou preço do Arroz Tio João", points: 10, date: "2025-01-20" },
-    { action: "Avaliou Leite Parmalat", points: 5, date: "2025-01-19" },
-    { action: "Criou lista 'Compras da Semana'", points: 2, date: "2025-01-18" },
-    { action: "Sugeriu produto Açúcar Cristal", points: 15, date: "2025-01-17" },
-  ],
-}
-
 export default function PerfilPage() {
   const [user, setUser] = useState<any>(null)
-  const [profile] = useState(mockUserProfile)
+  const [profile, setProfile] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
@@ -86,11 +21,218 @@ export default function PerfilPage() {
       router.push("/login")
       return
     }
-    setUser(JSON.parse(userData))
+    
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
+    
+    // Fetch real profile data
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch(`/api/user/${parsedUser.id}/profile`)
+        if (response.ok) {
+          const profileData = await response.json()
+          setProfile(profileData)
+        } else {
+          console.error('Error fetching profile:', response.statusText)
+          // Set a basic profile structure if API fails
+          setProfile({
+            name: parsedUser.name || 'Usuário',
+            email: parsedUser.email || '',
+            joinDate: parsedUser.createdAt || new Date().toISOString(),
+            level: "Iniciante",
+            nextLevel: "Colaborador",
+            totalPoints: 0,
+            pointsToNextLevel: 50,
+            stats: {
+              pricesReported: 0,
+              productsReviewed: 0,
+              productsSuggested: 0,
+              listsCreated: 0,
+              totalSavings: 0,
+            },
+            achievements: [],
+            recentActivity: [],
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching profile:', error)
+        // Set a basic profile structure if API fails
+        setProfile({
+          name: parsedUser.name || 'Usuário',
+          email: parsedUser.email || '',
+          joinDate: parsedUser.createdAt || new Date().toISOString(),
+          level: "Iniciante",
+          nextLevel: "Colaborador",
+          totalPoints: 0,
+          pointsToNextLevel: 50,
+          stats: {
+            pricesReported: 0,
+            productsReviewed: 0,
+            productsSuggested: 0,
+            listsCreated: 0,
+            totalSavings: 0,
+          },
+          achievements: [],
+          recentActivity: [],
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    fetchProfile()
   }, [router])
 
-  if (!user) {
-    return <div>Carregando...</div>
+  if (!user || !profile || loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <header className="bg-white border-b">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Voltar
+                </Button>
+              </Link>
+              <div className="flex items-center gap-2">
+                <Star className="h-6 w-6 text-purple-600" />
+                <h1 className="text-xl font-bold">Meu Perfil</h1>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Loading State */}
+        <div className="container mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Profile Info Loading */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* User Info Skeleton */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-gradient-to-r from-purple-200 to-pink-200 rounded-full animate-pulse"></div>
+                    <div className="space-y-2">
+                      <div className="h-6 bg-gray-200 rounded-lg w-32 animate-pulse"></div>
+                      <div className="h-4 bg-gray-200 rounded-lg w-48 animate-pulse"></div>
+                      <div className="h-3 bg-gray-200 rounded-lg w-36 animate-pulse"></div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="h-6 bg-purple-200 rounded-full w-24 animate-pulse"></div>
+                      <div className="h-4 bg-gray-200 rounded-lg w-32 animate-pulse"></div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="h-4 bg-gray-200 rounded-lg w-20 animate-pulse"></div>
+                        <div className="h-4 bg-gray-200 rounded-lg w-40 animate-pulse"></div>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full w-full animate-pulse"></div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Stats Skeleton */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-gray-400" />
+                    <div className="h-6 bg-gray-200 rounded-lg w-24 animate-pulse"></div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <div key={i} className="text-center p-4 bg-gray-50 rounded-lg">
+                        <div className="h-8 bg-gray-200 rounded-lg w-12 mx-auto mb-2 animate-pulse"></div>
+                        <div className="h-4 bg-gray-200 rounded-lg w-20 mx-auto animate-pulse"></div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent Activity Skeleton */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-gray-400" />
+                    <div className="h-6 bg-gray-200 rounded-lg w-32 animate-pulse"></div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-200 rounded-lg w-48 mb-1 animate-pulse"></div>
+                          <div className="h-3 bg-gray-200 rounded-lg w-24 animate-pulse"></div>
+                        </div>
+                        <div className="h-6 bg-gray-200 rounded-lg w-12 animate-pulse"></div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sidebar Loading */}
+            <div className="space-y-6">
+              {/* Achievements Skeleton */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Trophy className="h-5 w-5 text-gray-400" />
+                    <div className="h-6 bg-gray-200 rounded-lg w-20 animate-pulse"></div>
+                  </CardTitle>
+                  <CardDescription>
+                    <div className="h-4 bg-gray-200 rounded-lg w-40 animate-pulse"></div>
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="text-2xl w-8 h-8 bg-gray-200 rounded animate-pulse"></div>
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-200 rounded-lg w-24 mb-1 animate-pulse"></div>
+                          <div className="h-3 bg-gray-200 rounded-lg w-36 animate-pulse"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Points Breakdown Skeleton */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-gray-400" />
+                    <div className="h-6 bg-gray-200 rounded-lg w-32 animate-pulse"></div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="h-4 bg-gray-200 rounded-lg w-24 animate-pulse"></div>
+                        <div className="h-6 bg-gray-200 rounded-full w-16 animate-pulse"></div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const progressPercentage = (profile.totalPoints / (profile.totalPoints + profile.pointsToNextLevel)) * 100
@@ -200,7 +342,7 @@ export default function PerfilPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {profile.recentActivity.map((activity, index) => (
+                  {profile.recentActivity.map((activity: any, index: number) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <div>
                         <p className="font-medium text-sm">{activity.action}</p>
@@ -230,7 +372,7 @@ export default function PerfilPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {profile.achievements.map((achievement) => (
+                  {profile.achievements.map((achievement: any) => (
                     <div
                       key={achievement.id}
                       className={`flex items-center gap-3 p-3 rounded-lg ${
@@ -269,24 +411,24 @@ export default function PerfilPage() {
               <CardContent>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
+                    <span>Sugerir produto</span>
+                    <Badge variant="secondary">15 pts</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
                     <span>Informar preço</span>
-                    <Badge variant="secondary">+10 pts</Badge>
+                    <Badge variant="secondary">10 pts</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Avaliar produto</span>
-                    <Badge variant="secondary">+5 pts</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Sugerir produto</span>
-                    <Badge variant="secondary">+15 pts</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Criar lista</span>
-                    <Badge variant="secondary">+2 pts</Badge>
+                    <Badge variant="secondary">5 pts</Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span>Completar compra</span>
-                    <Badge variant="secondary">+3 pts</Badge>
+                    <Badge variant="secondary">3 pts</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Criar lista</span>
+                    <Badge variant="secondary">2 pts</Badge>
                   </div>
                 </div>
               </CardContent>

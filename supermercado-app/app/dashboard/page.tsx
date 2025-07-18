@@ -8,52 +8,59 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ShoppingCart, Plus, Search, MapPin, TrendingDown, Star, List, Calendar, Clock, Navigation } from "lucide-react"
+import { MapPin, Clock, TrendingUp, Plus, BarChart3, Star, Target, ShoppingCart, Package, TrendingDown, Ban, Search, List, Navigation } from "lucide-react"
 import Link from "next/link"
 import { UserMenu } from "@/components/user-menu"
 import { useLocation } from "@/hooks/use-location"
 
-// Mock data
-const mockLists = [
-  {
-    id: 1,
-    name: "Compras da Semana",
-    items: 12,
-    completed: 8,
-    date: "2025-01-20",
-    estimatedTotal: 89.5,
-  },
-  {
-    id: 2,
-    name: "Festa de Aniversário",
-    items: 25,
-    completed: 0,
-    date: "2025-01-25",
-    estimatedTotal: 156.8,
-  },
-  {
-    id: 3,
-    name: "Produtos de Limpeza",
-    items: 8,
-    completed: 8,
-    date: "2025-01-18",
-    estimatedTotal: 45.2,
-  },
-]
+interface RecentProduct {
+  name: string
+  price: number
+  market: string
+  date: string
+  createdAt: string
+}
 
-const mockRecentProducts = [
-  { name: "Arroz Tio João 5kg", price: 18.9, market: "Extra", date: "Hoje" },
-  { name: "Leite Integral 1L", price: 4.5, market: "Pão de Açúcar", date: "Ontem" },
-  { name: "Frango Kg", price: 12.8, market: "Carrefour", date: "2 dias" },
-]
+interface ShoppingListItem {
+  id: number
+  quantity: number
+  collected: boolean
+  productId: number
+  shoppingListId: number
+}
+
+interface ShoppingList {
+  id: number
+  name: string
+  status: string
+  items: ShoppingListItem[]
+  completed: number
+  estimatedTotal: number
+  actualTotal?: number
+  createdAt: string
+  userId: number
+}
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const router = useRouter()
-  const [activeLists, setActiveLists] = useState([])
-  const [historyLists, setHistoryLists] = useState([])
-  const [userLists, setUserLists] = useState<any[]>([])
+  const [activeLists, setActiveLists] = useState<ShoppingList[]>([])
+  const [historyLists, setHistoryLists] = useState<ShoppingList[]>([])
+  const [recentProducts, setRecentProducts] = useState<RecentProduct[]>([])
+  const [stats, setStats] = useState<{ 
+    activeLists: number; 
+    monthSavings: number; 
+    points: number;
+    prices: number;
+    reviews: number;
+  }>({
+    activeLists: 0,
+    monthSavings: 0,
+    points: 0,
+    prices: 0,
+    reviews: 0
+  })
   const { 
     userLocation, 
     isLoadingLocation, 
@@ -63,33 +70,60 @@ export default function DashboardPage() {
     isLoadingMarkets 
   } = useLocation()
 
+  // Auto request location when page loads
+  useEffect(() => {
+    if (!userLocation && !isLoadingLocation) {
+      getCurrentLocation()
+    }
+  }, [])
+
   useEffect(() => {
     const userData = localStorage.getItem("user")
     if (!userData) {
       router.push("/login")
       return
     }
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
 
-    // Buscar listas do backend
-    const fetchUserLists = async (userId: number) => {
+    // Load lists and stats from API
+    const fetchData = async () => {
       try {
-        const response = await fetch(`/api/shopping_list?userId=${userId}`)
-        if (response.ok) {
-          const lists = await response.json()
-          setUserLists(lists)
-        } else {
-          setUserLists([])
+        const [listsResponse, statsResponse, recentProductsResponse] = await Promise.all([
+          fetch(`/api/shopping_list?userId=${parsedUser.id}`),
+          fetch(`/api/stats?userId=${parsedUser.id}`),
+          fetch(`/api/price_reports/recent`)
+        ])
+
+        if (listsResponse.ok) {
+          const lists: ShoppingList[] = await listsResponse.json()
+          // Separate active and history lists
+          const active = lists.filter((list: ShoppingList) => list.status === "active")
+          const history = lists.filter((list: ShoppingList) => list.status === "completed")
+          
+          setActiveLists(active)
+          setHistoryLists(history)
+        }
+
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setStats(statsData)
+        }
+
+        if (recentProductsResponse.ok) {
+          const recentProductsData: RecentProduct[] = await recentProductsResponse.json()
+          setRecentProducts(recentProductsData)
         }
       } catch (error) {
-        setUserLists([])
+        console.error("Error fetching data:", error)
+        setActiveLists([])
+        setHistoryLists([])
+        setRecentProducts([])
+        setStats({ activeLists: 0, monthSavings: 0, points: 0, prices: 0, reviews: 0 })
       }
     }
 
-    if (userData) {
-      const parsedUser = JSON.parse(userData)
-      fetchUserLists(parsedUser.id)
-    }
+    fetchData()
   }, [router])
 
   const handleLogout = () => {
@@ -158,7 +192,7 @@ export default function DashboardPage() {
                   <List className="h-6 w-6 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">3</p>
+                  <p className="text-2xl font-bold">{stats.activeLists}</p>
                   <p className="text-sm text-gray-600">Listas Ativas</p>
                 </div>
               </div>
@@ -172,7 +206,7 @@ export default function DashboardPage() {
                   <TrendingDown className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">R$ 45</p>
+                  <p className="text-2xl font-bold">R$ {stats.monthSavings.toFixed(2)}</p>
                   <p className="text-sm text-gray-600">Economia este mês</p>
                 </div>
               </div>
@@ -186,7 +220,7 @@ export default function DashboardPage() {
                   <Star className="h-6 w-6 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">247</p>
+                  <p className="text-2xl font-bold">{stats.points}</p>
                   <p className="text-sm text-gray-600">Pontos Acumulados</p>
                 </div>
               </div>
@@ -197,21 +231,41 @@ export default function DashboardPage() {
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-orange-100 rounded-lg">
-                  <MapPin className="h-6 w-6 text-orange-600" />
+                  {locationError === 'PERMISSION_DENIED' ? (
+                    <Ban className="h-6 w-6 text-red-600" />
+                  ) : (
+                    <MapPin className="h-6 w-6 text-orange-600" />
+                  )}
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">
-                    {isLoadingMarkets ? "..." : nearbyMarkets.length}
-                  </p>
-                  <p className="text-sm text-gray-600">Mercados próximos</p>
-                  {!userLocation && (
-                    <button
-                      onClick={getCurrentLocation}
-                      disabled={isLoadingLocation}
-                      className="text-xs text-blue-600 hover:text-blue-800 mt-1"
-                    >
-                      {isLoadingLocation ? "Obtendo localização..." : "Obter localização"}
-                    </button>
+                  {isLoadingLocation ? (
+                    <>
+                      <p className="text-2xl font-bold">...</p>
+                      <p className="text-sm text-gray-600">Obtendo localização...</p>
+                    </>
+                  ) : locationError === 'PERMISSION_DENIED' ? (
+                    <>
+                      <p className="text-2xl font-bold text-gray-800">Bloqueado</p>
+                    </>
+                  ) : userLocation ? (
+                    <>
+                      <p className="text-2xl font-bold">{nearbyMarkets.length}</p>
+                      <p className="text-sm text-gray-600">Mercados próximos</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-2xl font-bold text-gray-400">-</p>
+                      <p className="text-sm text-red-600">
+                        {locationError || "GPS indisponível"}
+                      </p>
+                      <button
+                        onClick={getCurrentLocation}
+                        disabled={isLoadingLocation}
+                        className="text-xs text-blue-600 hover:text-blue-800 mt-1"
+                      >
+                        Tentar novamente
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
@@ -225,15 +279,15 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="text-center">
-                    <p className="text-xl font-bold text-purple-600">247</p>
+                    <p className="text-xl font-bold text-purple-600">{stats.points}</p>
                     <p className="text-xs text-purple-700">Pontos</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-purple-600">15</p>
+                    <p className="text-xl font-bold text-purple-600">{stats.prices}</p>
                     <p className="text-xs text-purple-700">Preços</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-bold text-purple-600">8</p>
+                    <p className="text-xl font-bold text-purple-600">{stats.reviews}</p>
                     <p className="text-xs text-purple-700">Avaliações</p>
                   </div>
                 </div>
@@ -261,57 +315,70 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div className="space-y-4">
-              {userLists.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista salva ainda.</p>
-              ) : (
-                userLists.map((list: any) => {
-                  let createdAt = list.createdAt || list.date || null;
-                  let dateStr = createdAt ? new Date(createdAt).toLocaleDateString("pt-BR") : "";
-                  let estimatedTotal = Array.isArray(list.items)
-                    ? list.items.reduce((sum: number, item: any) => {
-                        const price = item.actualPrice ?? item.price ?? item.product?.avgPrice ?? 0;
-                        return sum + (item.quantity * price);
-                      }, 0)
-                    : 0;
-                  return (
-                    <Link key={list.id} href={`/dashboard/lista/${list.id}`}>
-                      <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-gray-50">
-                        <CardContent className="p-6">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="font-semibold text-lg">{list.name}</h3>
-                                {list.completed === list.items?.length && (
-                                  <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                    Concluída
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-4 text-sm text-gray-600">
-                                <span>
-                                  {list.items?.length ?? 0} itens
-                                </span>
-                                {dateStr && (
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="h-4 w-4" />
-                                    {dateStr}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="text-right ml-4">
-                              <p className="text-lg font-bold text-green-600">
-                                R$ {estimatedTotal.toFixed(2)}
-                              </p>
-                              <p className="text-sm text-gray-600">estimado</p>
-                            </div>
+            <div>
+              {activeLists.map((list) => (
+                <Link key={list.id} href={`/dashboard/lista/${list.id}`} className="block mb-3">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-gray-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-lg">{list.name}</h3>
+                            {list.completed === list.items.length && (
+                              <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                Concluída
+                              </Badge>
+                            )}
+                            {list.actualTotal && (
+                              <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                Salva
+                              </Badge>
+                            )}
                           </div>
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  );
-                })
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span>
+                              {list.completed === list.items.length ? 
+                                "Lista completa" : 
+                                `${list.items.length - (list.completed || 0)} itens restantes`
+                              }
+                            </span>
+                            {list.completed > 0 && (
+                              <span className="text-green-600">
+                                {((list.completed / list.items.length) * 100).toFixed(0)}% concluída
+                              </span>
+                            )}
+                          </div>
+                          <div className="mt-2">
+                            <p className="text-sm text-gray-600">
+                              Total: {list.items.length} itens • Criada em {list.createdAt ? new Date(list.createdAt).toLocaleDateString("pt-BR") : new Date().toLocaleDateString("pt-BR")}
+                            </p>
+                            {list.actualTotal && (
+                              <p className="text-sm text-green-600 font-medium">
+                                Economia: R$ {(list.estimatedTotal - list.actualTotal).toFixed(2)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <p className="text-lg font-bold text-green-600">
+                            R$ {((list.actualTotal || list.estimatedTotal || 0)).toFixed(2)}
+                          </p>
+                          <p className="text-sm text-gray-600">{list.actualTotal ? "gasto real" : "estimado"}</p>
+                          {list.completed === list.items.length && !list.actualTotal && (
+                            <Link href="/dashboard/lista-finalizada">
+                              <Button size="sm" className="mt-2 bg-green-600 hover:bg-green-700">
+                                Ver Mercados
+                              </Button>
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+              {activeLists.length === 0 && (
+                <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista ativa no momento.</p>
               )}
             </div>
 
@@ -323,34 +390,38 @@ export default function DashboardPage() {
               </Link>
             </div>
 
-            <div className="space-y-4">
+            <div>
               {historyLists.slice(0, 3).map((list) => (
-                <Card key={list.id} className="hover:shadow-md transition-shadow cursor-pointer">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">{list.name}</h3>
-                          <Badge variant="secondary" className="bg-gray-100 text-gray-800">
-                            {list.status === "completed" ? "Finalizada" : "Modificada"}
-                          </Badge>
+                <Link key={list.id} href={`/dashboard/lista/${list.id}`} className="block mb-3">
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer hover:bg-gray-50">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-semibold text-lg">{list.name}</h3>
+                            <Badge variant="secondary" className="bg-gray-100 text-gray-800">
+                              {list.status === "completed" ? "Finalizada" : "Modificada"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-4 text-sm text-gray-600">
+                            <span>
+                              Total: {list.items.length} itens
+                            </span>
+                            <span>
+                              {list.completed > 0 && `${((list.completed / list.items.length) * 100).toFixed(0)}% coletados`}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-4 text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {new Date(list.date).toLocaleDateString("pt-BR")}
-                          </span>
+                        <div className="text-right ml-4">
+                          <p className="text-lg font-bold text-gray-600">
+                            R$ {(list.actualTotal || list.estimatedTotal || 0).toFixed(2)}
+                          </p>
+                          <p className="text-sm text-gray-600">gasto real</p>
                         </div>
                       </div>
-                      <div className="text-right ml-4">
-                        <p className="text-lg font-bold text-gray-600">
-                          R$ {list.actualTotal ? list.actualTotal.toFixed(2) : list.estimatedTotal.toFixed(2)}
-                        </p>
-                        <p className="text-sm text-gray-600">gasto real</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </Link>
               ))}
               {historyLists.length === 0 && (
                 <p className="text-sm text-gray-500 text-center py-4">Nenhuma atividade recente.</p>
@@ -367,7 +438,7 @@ export default function DashboardPage() {
                 <CardDescription>Últimos preços coletados pela comunidade</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {mockRecentProducts.map((product, index) => (
+                {recentProducts.map((product, index) => (
                   <div key={index} className="flex items-center justify-between">
                     <div className="flex-1">
                       <p className="font-medium text-sm">{product.name}</p>
@@ -375,9 +446,12 @@ export default function DashboardPage() {
                         {product.market} • {product.date}
                       </p>
                     </div>
-                    <p className="font-bold text-green-600">R$ {product.price.toFixed(2)}</p>
+                    <p className="font-bold text-green-600">R$ {product.price.toFixed(2).toFixed(2)}</p>
                   </div>
                 ))}
+                {recentProducts.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">Nenhum preço recente disponível</p>
+                )}
               </CardContent>
             </Card>
 
@@ -387,19 +461,19 @@ export default function DashboardPage() {
                 <CardTitle className="text-lg">Ações Rápidas</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Link href="/dashboard/sugerir-produto">
+                <Link href="/dashboard/sugerir-produto" className="block mb-3">
                   <Button variant="outline" className="w-full justify-start">
                     <Plus className="h-4 w-4 mr-2" />
                     Sugerir Produto
                   </Button>
                 </Link>
-                <Link href="/dashboard/mercados">
+                <Link href="/dashboard/mercados" className="block mb-3">
                   <Button variant="outline" className="w-full justify-start">
                     <MapPin className="h-4 w-4 mr-2" />
                     Encontrar Mercados
                   </Button>
                 </Link>
-                <Link href="/dashboard/buscar">
+                <Link href="/dashboard/buscar" className="block">
                   <Button variant="outline" className="w-full justify-start">
                     <Search className="h-4 w-4 mr-2" />
                     Buscar Produtos
@@ -450,35 +524,29 @@ export default function DashboardPage() {
                 <CardDescription>Suas últimas listas salvas</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {userLists.length === 0 ? (
-                  <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista salva ainda</p>
-                ) : (
-                  userLists.slice(0, 3).map((list: any) => {
-                    // Tenta pegar a data de criação, se existir
-                    let createdAt = list.createdAt || list.date || null;
-                    let dateStr = createdAt ? new Date(createdAt).toLocaleDateString("pt-BR") : "";
-                    // Calcula valor estimado (soma dos itens)
-                    let estimatedTotal = Array.isArray(list.items)
-                      ? list.items.reduce((sum: number, item: any) => {
-                          // Usa o preço real do item se existir, senão o preço do produto
-                          const price = item.actualPrice ?? item.price ?? item.product?.avgPrice ?? 0;
-                          return sum + (item.quantity * price);
-                        }, 0)
-                      : 0;
-                    return (
-                      <div key={list.id} className="flex items-center justify-between">
+                {historyLists
+                  .filter((list) => list.actualTotal != null && typeof list.actualTotal === 'number')
+                  .slice(0, 3)
+                  .map((list) => (
+                    <Link key={list.id} href={`/dashboard/lista/${list.id}`}>
+                      <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
                         <div className="flex-1">
                           <p className="font-medium text-sm">{list.name}</p>
                           <p className="text-xs text-gray-600">
-                            {list.items?.length ?? 0} itens{dateStr && ` • ${dateStr}`}
+                            {list.items.length} itens • {new Date(list.createdAt).toLocaleDateString("pt-BR")}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-green-600 text-sm">R$ {estimatedTotal.toFixed(2)}</p>
+                          <p className="font-bold text-green-600 text-sm">R$ {(list.actualTotal || 0).toFixed(2)}</p>
+                          <p className="text-xs text-gray-600">
+                            -{list.actualTotal ? (((list.estimatedTotal - list.actualTotal) / list.estimatedTotal) * 100).toFixed(0) : 0}%
+                          </p>
                         </div>
                       </div>
-                    );
-                  })
+                    </Link>
+                  ))}
+                {historyLists.filter((list) => list.actualTotal != null).length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista salva ainda</p>
                 )}
               </CardContent>
             </Card>

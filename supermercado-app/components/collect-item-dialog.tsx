@@ -22,6 +22,8 @@ import {
   Shield,
   Clock,
   DollarSign,
+  Loader2,
+  X,
 } from "lucide-react"
 
 interface CollectItemDialogProps {
@@ -37,7 +39,10 @@ interface CollectItemDialogProps {
     collected?: boolean
   } | null
   onItemCollected: (id: number, actualPrice: number, method: "manual" | "image") => void
+  shoppingListId: number
 }
+
+type InputMethodType = "manual" | "image"
 
 // Mock historical data com mais detalhes
 const mockHistoricalData = {
@@ -101,11 +106,12 @@ const mockHistoricalData = {
   ],
 }
 
-export function CollectItemDialog({ open, onOpenChange, item, onItemCollected }: CollectItemDialogProps) {
+export default function CollectItemDialog({ open, onOpenChange, item, onItemCollected }: CollectItemDialogProps) {
   const [actualPrice, setActualPrice] = useState("")
-  const [inputMethod, setInputMethod] = useState("manual")
+  const [inputMethod, setInputMethod] = useState<InputMethodType>("manual")
   const [isProcessing, setIsProcessing] = useState(false)
   const [imageFile, setImageFile] = useState<File | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
 
   if (!item) {
@@ -115,19 +121,46 @@ export function CollectItemDialog({ open, onOpenChange, item, onItemCollected }:
   // valor de referência para comparações
   const estimatedPriceRef = item.estimatedPrice ?? item.avgPrice ?? 0
 
-  const handleCollect = () => {
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!item) return
+
     if (!actualPrice) {
-      alert("Informe o preço pago pelo produto")
+      alert("Por favor, insira o preço")
       return
     }
-    onItemCollected(item.id, Number.parseFloat(actualPrice), inputMethod as "manual" | "image")
 
+    try {
+      const response = await fetch('/api/shopping_list_item', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: item.id,
+          actualPrice: Number.parseFloat(actualPrice),
+          method: inputMethod,
+          action: 'collect'
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update item')
+      }
+
+      onItemCollected(item.id, Number.parseFloat(actualPrice), inputMethod)
+      handleSuccess()
+    } catch (error) {
+      console.error("Error updating item:", error)
+      alert("Erro ao atualizar item. Tente novamente.")
+    }
+  }
+
+  const handleSuccess = () => {
     setShowSuccess(true)
-
-    // Reset after success
     setTimeout(() => {
-      setActualPrice("")
       setImageFile(null)
+      setPreviewUrl(null)
       setShowSuccess(false)
       onOpenChange(false)
     }, 2000)
@@ -137,17 +170,19 @@ export function CollectItemDialog({ open, onOpenChange, item, onItemCollected }:
     const file = event.target.files?.[0]
     if (file) {
       setImageFile(file)
+      setPreviewUrl(URL.createObjectURL(file))
       setIsProcessing(true)
 
       // Simular reconhecimento de imagem
       setTimeout(() => {
-        const simulatedPrice = (Math.random() * 5 + 15).toFixed(2)
+        const simulatedPrice = ((item?.estimatedPrice || item?.avgPrice || 20) * 0.9).toFixed(2)
         setActualPrice(simulatedPrice)
         setIsProcessing(false)
-      }, 2000)
+      }, 1500)
     }
   }
 
+  // Calculate price differences
   const averageUserPrice =
     mockHistoricalData.userHistory.length > 0
       ? mockHistoricalData.userHistory.reduce((sum, entry) => sum + entry.price, 0) /
@@ -236,10 +271,16 @@ export function CollectItemDialog({ open, onOpenChange, item, onItemCollected }:
             <Card>
               <CardContent className="p-4">
                 <h4 className="font-medium mb-4">Como você quer informar o preço?</h4>
-                <Tabs value={inputMethod} onValueChange={setInputMethod}>
+                <Tabs value={inputMethod} onValueChange={(value) => setInputMethod(value as InputMethodType)}>
                   <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="manual">Manual</TabsTrigger>
-                    <TabsTrigger value="image">Foto do Preço</TabsTrigger>
+                    <TabsTrigger value="manual" className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Manual
+                    </TabsTrigger>
+                    <TabsTrigger value="image" className="flex items-center gap-2">
+                      <Camera className="h-4 w-4" />
+                      Foto do Preço
+                    </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="manual" className="space-y-4">
@@ -377,11 +418,21 @@ export function CollectItemDialog({ open, onOpenChange, item, onItemCollected }:
             )}
 
             <Button
-              onClick={handleCollect}
+              onClick={handleSubmit}
               className="w-full bg-green-600 hover:bg-green-700"
               disabled={!actualPrice || isProcessing}
             >
-              {isProcessing ? "Processando..." : "Confirmar Coleta"}
+              {isProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Confirmar Coleta
+                </>
+              )}
             </Button>
           </div>
 

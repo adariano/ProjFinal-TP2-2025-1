@@ -4,10 +4,11 @@ import { prisma } from '../../../../lib/prisma';
 // GET - Buscar usuário por ID
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = parseInt(params.id);
+    const { id } = await params;
+    const userId = parseInt(id);
     
     if (isNaN(userId)) {
       return NextResponse.json(
@@ -51,11 +52,11 @@ export async function GET(
 // PATCH - Atualizar usuário
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const body = await req.json();
-        const { id } = params;
+        const { id } = await params;
 
         // Validação básica (pode ser expandida conforme necessário)
         if (!body.name && !body.email && !body.cpf && !body.role) {
@@ -108,10 +109,11 @@ export async function PATCH(
 // DELETE - Deletar usuário
 export async function DELETE(
   _: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const userId = parseInt(params.id);
+    const { id } = await params;
+    const userId = parseInt(id);
     
     if (isNaN(userId)) {
       return NextResponse.json(
