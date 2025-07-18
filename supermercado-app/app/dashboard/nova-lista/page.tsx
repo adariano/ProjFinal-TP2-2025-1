@@ -357,28 +357,6 @@ export default function NovaListaPage() {
     }
   }
 
-  const getCurrentLocation = () => {
-    setGpsLoading(true)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-          setGpsLoading(false)
-        },
-        (error) => {
-          console.error("Erro ao obter localização:", error)
-          alert("Não foi possível obter sua localização")
-          setGpsLoading(false)
-        },
-      )
-    } else {
-      alert("Geolocalização não é suportada neste navegador")
-      setGpsLoading(false)
-    }
-  }
 
   const addItem = (product: any) => {
     if (!selectedItems.find((item) => item.id === product.id)) {
@@ -788,12 +766,12 @@ export default function NovaListaPage() {
                             </div>
                             <div className="text-right ml-4">
                               <p className="font-bold text-green-600">
-                                R$ {product.bestPrice || (product.avgPrice * 0.9).toFixed(2)}
+                                R$ {(product.bestPrice !== undefined ? product.bestPrice : product.avgPrice * 0.9).toFixed(2)}
                               </p>
-                              <p className="text-xs text-gray-500 line-through">R$ {product.avgPrice}</p>
+                              <p className="text-xs text-gray-500 line-through">R$ {product.avgPrice.toFixed(2)}</p>
                               <p className="text-xs text-green-600">
                                 Economia: R${" "}
-                                {(product.avgPrice - (product.bestPrice || product.avgPrice * 0.9)).toFixed(2)}
+                                {(product.avgPrice - (product.bestPrice !== undefined ? product.bestPrice : product.avgPrice * 0.9)).toFixed(2)}
                               </p>
                               <Button size="sm" className="mt-1" onClick={() => addItem(product)}>
                                 <Plus className="h-3 w-3" />

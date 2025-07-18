@@ -20,7 +20,11 @@ export async function POST(req: NextRequest) {
         userId,
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true
+          }
+        },
         user: {
           select: {
             id: true,
@@ -52,7 +56,11 @@ export async function GET(req: NextRequest) {
       const shoppingList = await prisma.shoppingList.findUnique({
         where: { id: parseInt(id) },
         include: {
-          items: true,
+          items: {
+            include: {
+              product: true
+            }
+          },
           user: {
             select: {
               id: true,
@@ -73,7 +81,11 @@ export async function GET(req: NextRequest) {
     const shoppingLists = await prisma.shoppingList.findMany({
       where,
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true
+          }
+        },
         user: {
           select: {
             id: true,
@@ -114,7 +126,11 @@ export async function PATCH(req: NextRequest) {
         ...(status && { status }),
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true
+          }
+        },
         user: {
           select: {
             id: true,

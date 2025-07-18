@@ -16,6 +16,7 @@ interface UserMenuProps {
     name: string
     email: string
     role?: string
+    photoUrl?: string
   }
 }
 
@@ -31,7 +32,15 @@ export function UserMenu({ user }: UserMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="flex items-center gap-2 hover:bg-gray-100">
-          <User className="h-5 w-5 text-gray-600" />
+          {user.photoUrl ? (
+            <img
+              src={user.photoUrl}
+              alt="Foto de perfil"
+              className="h-7 w-7 rounded-full object-cover border"
+            />
+          ) : (
+            <User className="h-5 w-5 text-gray-600" />
+          )}
           <span className="text-sm font-medium">{user.name}</span>
         </Button>
       </DropdownMenuTrigger>

@@ -21,6 +21,7 @@ model User {
   password       String
   role           Role            @default(USER)
   createdAt      DateTime        @default(now())
+  photoUrl       String?         // URL da foto de perfil
   shoppingLists  ShoppingList[]
 }
 

@@ -53,6 +53,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [activeLists, setActiveLists] = useState([])
   const [historyLists, setHistoryLists] = useState([])
+  const [userLists, setUserLists] = useState<any[]>([])
   const { 
     userLocation, 
     isLoadingLocation, 
@@ -70,19 +71,24 @@ export default function DashboardPage() {
     }
     setUser(JSON.parse(userData))
 
-    // Load saved lists
-    try {
-      const savedLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-      // Separate active and history lists
-      const active = savedLists.filter((list) => list.status === "active")
-      const history = savedLists.filter((list) => list.status !== "active")
+    // Buscar listas do backend
+    const fetchUserLists = async (userId: number) => {
+      try {
+        const response = await fetch(`/api/shopping_list?userId=${userId}`)
+        if (response.ok) {
+          const lists = await response.json()
+          setUserLists(lists)
+        } else {
+          setUserLists([])
+        }
+      } catch (error) {
+        setUserLists([])
+      }
+    }
 
-      setActiveLists(active)
-      setHistoryLists(history)
-    } catch (error) {
-      console.error("Error parsing saved lists from localStorage:", error)
-      setActiveLists([])
-      setHistoryLists([])
+    if (userData) {
+      const parsedUser = JSON.parse(userData)
+      fetchUserLists(parsedUser.id)
     }
   }, [router])
 
@@ -378,7 +384,7 @@ export default function DashboardPage() {
                         {product.market} • {product.date}
                       </p>
                     </div>
-                    <p className="font-bold text-green-600">R$ {product.price}</p>
+                    <p className="font-bold text-green-600">R$ {product.price.toFixed(2)}</p>
                   </div>
                 ))}
               </CardContent>
@@ -453,27 +459,35 @@ export default function DashboardPage() {
                 <CardDescription>Suas últimas listas salvas</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                {mockLists
-                  .filter((list) => list.actualTotal)
-                  .slice(0, 3)
-                  .map((list) => (
-                    <div key={list.id} className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{list.name}</p>
-                        <p className="text-xs text-gray-600">
-                          {list.items} itens • {new Date(list.date).toLocaleDateString("pt-BR")}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-green-600 text-sm">R$ {list.actualTotal.toFixed(2)}</p>
-                        <p className="text-xs text-gray-600">
-                          -{(((list.estimatedTotal - list.actualTotal) / list.estimatedTotal) * 100).toFixed(0)}%
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                {mockLists.filter((list) => list.actualTotal).length === 0 && (
+                {userLists.length === 0 ? (
                   <p className="text-sm text-gray-500 text-center py-4">Nenhuma lista salva ainda</p>
+                ) : (
+                  userLists.slice(0, 3).map((list: any) => {
+                    // Tenta pegar a data de criação, se existir
+                    let createdAt = list.createdAt || list.date || null;
+                    let dateStr = createdAt ? new Date(createdAt).toLocaleDateString("pt-BR") : "";
+                    // Calcula valor estimado (soma dos itens)
+                    let estimatedTotal = Array.isArray(list.items)
+                      ? list.items.reduce((sum: number, item: any) => {
+                          // Usa o preço real do item se existir, senão o preço do produto
+                          const price = item.actualPrice ?? item.price ?? item.product?.avgPrice ?? 0;
+                          return sum + (item.quantity * price);
+                        }, 0)
+                      : 0;
+                    return (
+                      <div key={list.id} className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{list.name}</p>
+                          <p className="text-xs text-gray-600">
+                            {list.items?.length ?? 0} itens{dateStr && ` • ${dateStr}`}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-green-600 text-sm">R$ {estimatedTotal.toFixed(2)}</p>
+                        </div>
+                      </div>
+                    );
+                  })
                 )}
               </CardContent>
             </Card>
