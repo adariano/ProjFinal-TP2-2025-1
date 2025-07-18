@@ -135,7 +135,86 @@ export default function MercadosPage() {
           )
           if (response.ok) {
             const data = await response.json()
-            setMarkets(data.markets || [])
+            let markets = data.markets || []
+            
+            // Try to get 100% accurate routes from Google Maps for searched address
+            if (markets.length > 0) {
+              console.log('Starting progressive route enhancement with Google Maps for searched address...')
+              
+              try {
+                // Start progressive enhancement for all markets using the API
+                const progressiveEnhancement = async () => {
+                  for (const market of markets) {
+                    try {
+                      const routeResponse = await fetch('/api/route/crawl', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                          userLat: coords.lat,
+                          userLng: coords.lng,
+                          marketId: market.id,
+                          marketName: market.name,
+                          marketLat: market.latitude,
+                          marketLng: market.longitude,
+                        }),
+                      })
+                      
+                      if (routeResponse.ok) {
+                        const routeResult = await routeResponse.json()
+                        if (routeResult.success && routeResult.data) {
+                          // Update the specific market with enhanced data
+                          setMarkets(prevMarkets => 
+                            prevMarkets.map(prevMarket => {
+                              if (prevMarket.id === market.id) {
+                                const updatedMarket = {
+                                  ...prevMarket,
+                                  estimatedTime: routeResult.data.estimatedTime,
+                                  accuracy: routeResult.data.accuracy,
+                                  service: routeResult.data.service,
+                                  googleMapsUrl: routeResult.data.url,
+                                  distance: routeResult.data.distance.includes('km') 
+                                    ? parseFloat(routeResult.data.distance.replace('km', '').trim())
+                                    : prevMarket.distance,
+                                  isProgressivelyEnhanced: true // Flag to trigger fade effect
+                                };
+                                
+                                // Clear the progressive enhancement flag after 3 seconds
+                                setTimeout(() => {
+                                  setMarkets(prevMarkets => 
+                                    prevMarkets.map(m => 
+                                      m.id === market.id ? { ...m, isProgressivelyEnhanced: false } : m
+                                    )
+                                  );
+                                }, 3000);
+                                
+                                return updatedMarket;
+                              }
+                              return prevMarket;
+                            })
+                          );
+                        }
+                      }
+                      
+                      // Add delay between requests to avoid overwhelming the service
+                      await new Promise(resolve => setTimeout(resolve, 2000));
+                    } catch (error) {
+                      console.error(`Error crawling route for market ${market.name}:`, error)
+                    }
+                  }
+                };
+                
+                // Start progressive enhancement in background
+                progressiveEnhancement();
+                
+                console.log('Progressive enhancement started in background')
+              } catch (error) {
+                console.error('Error starting progressive enhancement:', error)
+              }
+            }
+            
+            setMarkets(markets)
           }
         }
       }
@@ -153,9 +232,13 @@ export default function MercadosPage() {
         case "rating":
           return b.rating - a.rating
         case "price":
-          const priceOrder = { $: 1, $$: 2, $$$: 3 }
+          const priceOrder = { 
+            $: 1, $$: 2, $$$: 3,
+            BAIXO: 1, MEDIO: 2, ALTO: 3 
+          }
           return (
-            priceOrder[a.priceLevel as keyof typeof priceOrder] - priceOrder[b.priceLevel as keyof typeof priceOrder]
+            (priceOrder[a.priceLevel as keyof typeof priceOrder] || 2) - 
+            (priceOrder[b.priceLevel as keyof typeof priceOrder] || 2)
           )
         default:
           return 0
@@ -167,13 +250,32 @@ export default function MercadosPage() {
   const getPriceLevelText = (level: string) => {
     switch (level) {
       case "$":
+      case "BAIXO":
         return "Econômico"
       case "$$":
+      case "MEDIO":
         return "Moderado"
       case "$$$":
+      case "ALTO":
         return "Premium"
       default:
-        return "N/A"
+        return "Moderado" // Default to Moderado instead of N/A
+    }
+  }
+
+  const getPriceLevelColor = (level: string) => {
+    switch (level) {
+      case "$":
+      case "BAIXO":
+        return "bg-green-100 text-green-800"
+      case "$$":
+      case "MEDIO":
+        return "bg-yellow-100 text-yellow-800"
+      case "$$$":
+      case "ALTO":
+        return "bg-red-100 text-red-800"
+      default:
+        return "bg-gray-100 text-gray-800"
     }
   }
 
@@ -412,25 +514,53 @@ export default function MercadosPage() {
 
         {/* Markets List */}
         <div className="space-y-3">
+          {/* Progressive Enhancement Status */}
+          {markets.length > 0 && markets.some(m => !m.isProgressivelyEnhanced && m.accuracy !== 100) && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <div className="flex items-center gap-2 text-sm text-blue-800">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span>Aprimorando rotas com precisão 100% em tempo real...</span>
+              </div>
+            </div>
+          )}
+          
           {(isLoadingMarkets || isLoadingAllMarkets) ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
               <p className="text-gray-600">Carregando mercados...</p>
+              <p className="text-sm text-gray-500 mt-2">Obtendo rotas precisas do Google Maps...</p>
             </div>
           ) : (
             markets.map((market) => (
-              <Card key={market.id} className="hover:shadow-md transition-shadow">
+              <Card key={market.id} className="hover:shadow-md transition-all duration-300 group">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-xl font-semibold">{market.name}</h3>
                         {market.distance !== undefined && (
-                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                          <Badge 
+                            variant="secondary" 
+                            className={`bg-green-100 text-green-800 transition-all duration-500 ${
+                              market.isProgressivelyEnhanced ? 'animate-pulse' : ''
+                            }`}
+                          >
                             {market.distance.toFixed(1)} km
                           </Badge>
                         )}
-                        <Badge variant="outline">{getPriceLevelText(market.priceLevel)}</Badge>
+                        <Badge variant="outline" className={getPriceLevelColor(market.priceLevel)}>
+                          {getPriceLevelText(market.priceLevel)}
+                        </Badge>
+                        {market.accuracy === 100 && (
+                          <Badge 
+                            variant="secondary" 
+                            className={`bg-blue-100 text-blue-800 transition-all duration-500 ${
+                              market.isProgressivelyEnhanced ? 'animate-pulse' : ''
+                            }`}
+                          >
+                            ✓ Rota Precisa
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-4 mb-2">
@@ -474,7 +604,9 @@ export default function MercadosPage() {
                             <Navigation className="h-4 w-4" />
                             <button
                               onClick={() => openRouteInOSM(market)}
-                              className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                              className={`text-blue-600 hover:text-blue-800 hover:underline cursor-pointer transition-all duration-500 ${
+                                market.isProgressivelyEnhanced ? 'animate-pulse' : ''
+                              }`}
                               title="Ver rota no OpenStreetMap"
                             >
                               ~{market.estimatedTime || (market.distance ? `${Math.round(market.distance / 25 * 60)} min` : "5 min")} de carro
@@ -483,9 +615,16 @@ export default function MercadosPage() {
                         )}
                       </div>
                       
-                      {/* Accuracy Meter */}
-                      <div className="mt-2">
-                        <AccuracyMeter accuracy={market.accuracy || 75} service={market.service || 'straight-line'} />
+                      {/* Accuracy Meter - Hidden by default, shown on hover */}
+                      <div className="mt-4 pt-3 border-t border-gray-100 opacity-0 max-h-0 overflow-hidden group-hover:opacity-100 group-hover:max-h-20 transition-all duration-300 ease-in-out">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500">Precisão das informações:</span>
+                          <AccuracyMeter 
+                            accuracy={market.accuracy || 75} 
+                            service={market.service || 'straight-line'} 
+                            isProgressivelyEnhanced={market.isProgressivelyEnhanced}
+                          />
+                        </div>
                       </div>
                     </div>
 

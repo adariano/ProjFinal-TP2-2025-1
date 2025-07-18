@@ -134,7 +134,86 @@ export function useLocation(): UseLocationReturn {
       if (response.ok) {
         const data = await response.json()
         console.log('Nearby markets API response:', data)
-        setNearbyMarkets(data.markets || [])
+        let markets = data.markets || []
+        
+        // Try to get 100% accurate routes from Google Maps for enhanced markets
+        if (markets.length > 0) {
+          console.log('Starting progressive route enhancement with Google Maps...')
+          
+          try {
+            // Start progressive enhancement for all markets using the API
+            const progressiveEnhancement = async () => {
+              for (const market of markets) {
+                try {
+                  const routeResponse = await fetch('/api/route/crawl', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      userLat: location.lat,
+                      userLng: location.lng,
+                      marketId: market.id,
+                      marketName: market.name,
+                      marketLat: market.latitude,
+                      marketLng: market.longitude,
+                    }),
+                  })
+                  
+                  if (routeResponse.ok) {
+                    const routeResult = await routeResponse.json()
+                    if (routeResult.success && routeResult.data) {
+                      // Update the specific market with enhanced data
+                      setNearbyMarkets(prevMarkets => 
+                        prevMarkets.map(prevMarket => {
+                          if (prevMarket.id === market.id) {
+                            const updatedMarket = {
+                              ...prevMarket,
+                              estimatedTime: routeResult.data.estimatedTime,
+                              accuracy: routeResult.data.accuracy,
+                              service: routeResult.data.service,
+                              googleMapsUrl: routeResult.data.url,
+                              distance: routeResult.data.distance.includes('km') 
+                                ? parseFloat(routeResult.data.distance.replace('km', '').trim())
+                                : prevMarket.distance,
+                              isProgressivelyEnhanced: true // Flag to trigger fade effect
+                            };
+                            
+                            // Clear the progressive enhancement flag after 3 seconds
+                            setTimeout(() => {
+                              setNearbyMarkets(prevMarkets => 
+                                prevMarkets.map(m => 
+                                  m.id === market.id ? { ...m, isProgressivelyEnhanced: false } : m
+                                )
+                              );
+                            }, 3000);
+                            
+                            return updatedMarket;
+                          }
+                          return prevMarket;
+                        })
+                      );
+                    }
+                  }
+                  
+                  // Add delay between requests to avoid overwhelming the service
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                } catch (error) {
+                  console.error(`Error crawling route for market ${market.name}:`, error)
+                }
+              }
+            };
+            
+            // Start progressive enhancement in background
+            progressiveEnhancement();
+            
+            console.log('Progressive enhancement started in background')
+          } catch (error) {
+            console.error('Error starting progressive enhancement:', error)
+          }
+        }
+        
+        setNearbyMarkets(markets)
       } else {
         console.log('Nearby markets API failed, trying fallback:', response.status)
         // Fallback to regular market API if nearby fails
