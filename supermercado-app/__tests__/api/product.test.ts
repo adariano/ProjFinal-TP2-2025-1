@@ -2,13 +2,13 @@ import request from 'supertest';
 
 describe('Product API', () => {
   it('should create a product successfully', async () => {
-    const res = await request('http://localhost:3000')
+    const res = await request('http://localhost:3001')
       .post('/api/product')
       .send({
         name: 'Produto Teste',
-        price: 100.00,
-        description: 'Descrição do produto teste',
         category: 'Categoria Teste',
+        brand: 'Marca Teste',
+        avgPrice: 100.00,
       });
 
     expect(res.statusCode).toBe(201);
@@ -17,7 +17,7 @@ describe('Product API', () => {
   });
 
   it('should fetch all products successfully', async () => {
-    const res = await request('http://localhost:3000')
+    const res = await request('http://localhost:3001')
       .get('/api/product');
 
     expect(res.statusCode).toBe(200);

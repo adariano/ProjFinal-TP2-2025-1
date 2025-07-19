@@ -6,11 +6,9 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await prisma.shoppingListItem.deleteMany()
-  await prisma.shoppingList.deleteMany()
-  await prisma.product.deleteMany()
-  await prisma.market.deleteMany()
-  await prisma.user.deleteMany()
+  await prisma.priceReport.deleteMany({})
+  await prisma.review.deleteMany({})
+  await prisma.market.deleteMany({})
   await prisma.$disconnect()
 })
 
