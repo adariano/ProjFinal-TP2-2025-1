@@ -8,10 +8,13 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
-  await prisma.shoppingListItem.deleteMany()
-  await prisma.shoppingList.deleteMany()
-  await prisma.product.deleteMany()
-  await prisma.user.deleteMany()
+  await prisma.priceReport.deleteMany({})
+  await prisma.review.deleteMany({})
+  await prisma.shoppingListItem.deleteMany({})
+  await prisma.shoppingList.deleteMany({})
+  await prisma.product.deleteMany({})
+  await prisma.user.deleteMany({})
+  await prisma.market.deleteMany({})
   await prisma.$disconnect()
 })
 
@@ -48,11 +51,17 @@ describe('ShoppingListItem model TDD', () => {
 
   it('should create an item with valid data', async () => {
     // create necessary parent records
+    const timestamp = Date.now()
     const user = await prisma.user.create({
-      data: { name: 'Ana', email: 'ana@test.com', cpf: '111.222.333-44' },
+      data: { 
+        name: 'Ana', 
+        email: `ana${timestamp}@test.com`, 
+        cpf: `111.222.${timestamp.toString().slice(-3)}-45`, 
+        password: 'password123' 
+      },
     })
     const product = await prisma.product.create({
-      data: { name: 'Milk', category: 'Dairy', brand: 'BrandY', avgPrice: 3.5 },
+      data: { name: `Milk ${timestamp}`, category: 'Dairy', brand: 'BrandY', avgPrice: 3.5 },
     })
     const list = await prisma.shoppingList.create({
       data: { name: 'List A', userId: user.id },
