@@ -10,23 +10,26 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import {
-  ShoppingCart,
   ArrowLeft,
-  Plus,
-  Search,
   X,
+  ShoppingCart,
+  Search,
   Package,
-  TrendingUp,
   MapPin,
+  Plus,
+  Save,
   CheckCircle,
   Camera,
   Star,
-  Save,
+  TrendingUp,
+  Loader2
 } from "lucide-react"
 import Link from "next/link"
-import { CollectItemDialog } from "@/components/collect-item-dialog"
+import CollectItemDialog from "@/components/collect-item-dialog"
 import { ProductReviews } from "@/components/product-reviews"
 import { MarketRecommendationDialog } from "@/components/market-recommendation-dialog"
+import { useLocation } from "@/hooks/use-location"
+import { calculateDistance } from "@/lib/location-utils"
 
 // Mock products database
 const mockProducts = [
@@ -145,32 +148,51 @@ const mockMarkets = [
 ]
 
 // Mock user history data
-const mockUserHistory = {
+const mockUserHistory: { [key: number]: number[] } = {
   1: [18.5, 17.9, 19.2], // Arroz
   2: [7.2, 6.8, 7.5], // Feijão
   3: [4.2, 4.5, 4.1], // Leite
+}
+
+interface ShoppingListItem {
+  id: number
+  name: string
+  quantity: number
+  avgPrice: number
+  collected?: boolean
+  actualPrice?: number
 }
 
 export default function NovaListaPage() {
   const [user, setUser] = useState<any>(null)
   const [listName, setListName] = useState("")
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedItems, setSelectedItems] = useState<any[]>([])
+  const [selectedItems, setSelectedItems] = useState<ShoppingListItem[]>([])
   const [filteredProducts, setFilteredProducts] = useState(mockProducts)
   const [collectDialogOpen, setCollectDialogOpen] = useState(false)
-  const [selectedItemForCollection, setSelectedItemForCollection] = useState<any>(null)
+  const [selectedItemForCollection, setSelectedItemForCollection] = useState<ShoppingListItem | null>(null)
   const [showReviews, setShowReviews] = useState<number | null>(null)
+  const [productsLoading, setProductsLoading] = useState(true)
+  const [gpsLoading, setGpsLoading] = useState(false)
 
   // New states for advanced features
-  const [priceEstimates, setPriceEstimates] = useState<any>({})
+  const [priceEstimates, setPriceEstimates] = useState<{ [key: number]: any }>({})
   const [showEstimates, setShowEstimates] = useState(false)
   const [recommendedMarkets, setRecommendedMarkets] = useState<any[]>([])
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [sortBy, setSortBy] = useState("price")
-  const [maxDistance, setMaxDistance] = useState(10)
-  const [gpsLoading, setGpsLoading] = useState(false)
   const [showRecommendationDialog, setShowRecommendationDialog] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [locationRequested, setLocationRequested] = useState(false)
+
+  // Use location hook
+  const { 
+    userLocation: userLocationHook, 
+    isLoadingLocation, 
+    locationError, 
+    nearbyMarkets, 
+    isLoadingMarkets 
+  } = useLocation()
 
   const router = useRouter()
 
@@ -182,6 +204,52 @@ export default function NovaListaPage() {
     }
     setUser(JSON.parse(userData))
   }, [router])
+
+  // Auto request location when page loads
+  useEffect(() => {
+    if (!locationRequested && !userLocationHook && !isLoadingLocation) {
+      updateUserLocation()
+    }
+  }, [])
+
+  // Update local state when hook location changes
+  useEffect(() => {
+    if (userLocationHook) {
+      setUserLocation(userLocationHook)
+    }
+  }, [userLocationHook])
+
+  // Load products from API
+  useEffect(() => {
+    const loadProducts = async () => {
+      setProductsLoading(true)
+      try {
+        const response = await fetch('/api/product')
+        if (response.ok) {
+          const products = await response.json()
+          // Transform API data to match the expected format
+          const transformedProducts = products.map((product: any) => ({
+            ...product,
+            bestPrice: product.avgPrice * 0.9, // Simulate best price
+            bestMarket: "Atacadão", // Default best market
+          }))
+          setFilteredProducts(transformedProducts)
+        } else {
+          console.error('Failed to load products')
+          // Fallback to mock data
+          setFilteredProducts(mockProducts)
+        }
+      } catch (error) {
+        console.error('Error loading products:', error)
+        // Fallback to mock data
+        setFilteredProducts(mockProducts)
+      } finally {
+        setProductsLoading(false)
+      }
+    }
+
+    loadProducts()
+  }, [])
 
   useEffect(() => {
     if (searchTerm) {
@@ -200,13 +268,13 @@ export default function NovaListaPage() {
     if (userLocation && selectedItems.length > 0) {
       getMarketRecommendations()
     }
-  }, [userLocation, sortBy, maxDistance])
+  }, [userLocation, sortBy])
 
   // Helper functions for price estimation
   const getUserHistoryPrice = (productId: number) => {
     const history = mockUserHistory[productId]
     if (!history || history.length === 0) return null
-    return history.reduce((sum, price) => sum + price, 0) / history.length
+    return history.reduce((sum: number, price: number) => sum + price, 0) / history.length
   }
 
   const getCommunityAveragePrice = (productId: number) => {
@@ -230,19 +298,17 @@ export default function NovaListaPage() {
 
   const calculateMarketTotal = (marketId: number) => {
     // Simulate market-specific pricing
-    const priceMultipliers = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
+    const priceMultipliers: { [key: number]: number } = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
     const multiplier = priceMultipliers[marketId] || 1.0
 
     return selectedItems.reduce((total, item) => {
-      const estimate = priceEstimates[item.id]?.estimated || item.avgPrice
+      const estimate = (priceEstimates as any)[item.id]?.estimated || item.avgPrice
       return total + estimate * item.quantity * multiplier
     }, 0)
   }
 
-  const sortMarkets = (markets: any[], sortBy: string, maxDistance: number) => {
-    const filtered = markets.filter((market) => !userLocation || market.distance <= maxDistance)
-
-    return filtered.sort((a, b) => {
+  const sortMarkets = (markets: any[], sortBy: string) => {
+    return markets.sort((a, b) => {
       switch (sortBy) {
         case "price":
           return a.estimatedTotal - b.estimatedTotal
@@ -260,7 +326,7 @@ export default function NovaListaPage() {
   }
 
   const calculatePriceEstimates = () => {
-    const estimates = {}
+    const estimates: { [key: number]: any } = {}
     selectedItems.forEach((item) => {
       const userHistoryPrice = getUserHistoryPrice(item.id)
       const communityAvgPrice = getCommunityAveragePrice(item.id)
@@ -277,37 +343,63 @@ export default function NovaListaPage() {
     setShowEstimates(true)
   }
 
-  const getMarketRecommendations = () => {
-    const markets = mockMarkets.map((market) => ({
-      ...market,
-      estimatedTotal: calculateMarketTotal(market.id),
-      distance: userLocation ? calculateDistance(userLocation, market.coordinates) : Math.random() * 5 + 1,
-    }))
+  const getMarketRecommendations = async () => {
+    try {
+      // Use nearby markets from the location hook if available
+      let markets = nearbyMarkets.length > 0 ? nearbyMarkets : mockMarkets
 
-    const sorted = sortMarkets(markets, sortBy, maxDistance)
-    setRecommendedMarkets(sorted)
+      // If we have user location, calculate distances for mock markets
+      if (userLocation && nearbyMarkets.length === 0) {
+        markets = mockMarkets.map((market) => ({
+          ...market,
+          distance: calculateDistance(userLocation, market.coordinates),
+        }))
+      }
+
+      // Calculate estimated totals for each market
+      const marketsWithTotals = markets.map((market) => ({
+        ...market,
+        estimatedTotal: calculateMarketTotal(market.id),
+        distance: market.distance || (userLocation ? calculateDistance(userLocation, market.coordinates) : Math.random() * 5 + 1),
+      }))
+
+      const sorted = sortMarkets(marketsWithTotals, sortBy)
+      setRecommendedMarkets(sorted)
+    } catch (error) {
+      console.error('Error getting market recommendations:', error)
+      // Fallback to mock markets
+      const fallbackMarkets = mockMarkets.map((market) => ({
+        ...market,
+        estimatedTotal: calculateMarketTotal(market.id),
+        distance: Math.random() * 5 + 1,
+      }))
+      setRecommendedMarkets(fallbackMarkets)
+    }
   }
 
-  const getCurrentLocation = () => {
-    setGpsLoading(true)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-          setGpsLoading(false)
-        },
-        (error) => {
-          console.error("Erro ao obter localização:", error)
-          alert("Não foi possível obter sua localização")
-          setGpsLoading(false)
-        },
-      )
-    } else {
-      alert("Geolocalização não é suportada neste navegador")
-      setGpsLoading(false)
+  const updateUserLocation = () => {
+    if (!locationRequested) {
+      setLocationRequested(true)
+      setGpsLoading(true)
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setUserLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            })
+            setGpsLoading(false)
+          },
+          (error) => {
+            console.error("Erro ao obter localização:", error)
+            setUserLocation(null)
+            setGpsLoading(false)
+          },
+        )
+      } else {
+        setUserLocation(null)
+        setGpsLoading(false)
+      }
     }
   }
 
@@ -412,60 +504,90 @@ export default function NovaListaPage() {
     setIsSaving(true)
 
     try {
-      // Calculate estimates first
-      const estimates = {}
-      selectedItems.forEach((item) => {
-        const userHistoryPrice = getUserHistoryPrice(item.id)
-        const communityAvgPrice = getCommunityAveragePrice(item.id)
-        const estimatedPrice = userHistoryPrice ? userHistoryPrice * 0.7 + communityAvgPrice * 0.3 : communityAvgPrice
-
-        estimates[item.id] = {
-          estimated: estimatedPrice,
-          userHistory: userHistoryPrice,
-          communityAvg: communityAvgPrice,
-          confidence: userHistoryPrice ? 85 : 65,
-        }
+      // First create the shopping list
+      const createListResponse = await fetch('/api/shopping_list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: listName.trim(),
+          userId: user.id,
+          status: 'active'
+        }),
       })
-      setPriceEstimates(estimates)
+
+      if (!createListResponse.ok) {
+        throw new Error('Failed to create shopping list')
+      }
+
+      const newList = await createListResponse.json()
+
+      // Now add all items to the list
+      for (const item of selectedItems) {
+        await fetch('/api/shopping_list_item', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shoppingListId: newList.id,
+            productId: item.id,
+            quantity: item.quantity
+          }),
+        })
+      }
 
       // Get location and calculate market recommendations
       let location = userLocation
-      let markets = []
 
       if (!location) {
-        // Try to get GPS location
-        try {
-          const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-            if (navigator.geolocation) {
-              navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-            } else {
-              reject(new Error("Geolocation not supported"))
-            }
-          })
+        // Try to get GPS location using the hook
+        updateUserLocation()
+        location = userLocation // Will be set by the hook
+      }
 
-          location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          }
-          setUserLocation(location)
-        } catch (error) {
-          console.log("GPS not available, using fallback")
-        }
+      // Calculate market recommendations using nearby markets if available
+      let markets = nearbyMarkets.length > 0 ? nearbyMarkets : mockMarkets
+
+      if (location && nearbyMarkets.length === 0) {
+        markets = mockMarkets.map((market) => ({
+          ...market,
+          distance: calculateDistance(location, market.coordinates),
+        }))
       }
 
       // Calculate market recommendations
-      markets = mockMarkets.map((market) => ({
+      // Calculate market recommendations
+      const marketsWithTotals = markets.map((market) => ({
         ...market,
         estimatedTotal: selectedItems.reduce((total, item) => {
-          const estimate = estimates[item.id]?.estimated || item.avgPrice
-          const priceMultipliers = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
+          const estimate = priceEstimates[item.id]?.estimated || item.avgPrice
+          const priceMultipliers: { [key: number]: number } = { 1: 0.9, 2: 1.0, 3: 0.95, 4: 1.15 }
           const multiplier = priceMultipliers[market.id] || 1.0
           return total + estimate * item.quantity * multiplier
         }, 0),
-        distance: location ? calculateDistance(location, market.coordinates) : Math.random() * 5 + 1,
+        distance: market.distance || (location ? calculateDistance(location, market.coordinates) : Math.random() * 5 + 1),
       }))
 
-      const sortedMarkets = markets.sort((a, b) => {
+      // Check if all items are collected
+      const allCollected = selectedItems.every(item => item.collected)
+      
+      // Update list status if needed
+      if (allCollected) {
+        await fetch(`/api/shopping_list`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: newList.id,
+            status: 'completed'
+          }),
+        })
+      }
+
+      const sortedMarkets = marketsWithTotals.sort((a, b) => {
         const scoreA = (a.estimatedTotal / 100) * 0.6 + a.distance * 0.4
         const scoreB = (b.estimatedTotal / 100) * 0.6 + b.distance * 0.4
         return scoreA - scoreB
@@ -473,72 +595,53 @@ export default function NovaListaPage() {
 
       setRecommendedMarkets(sortedMarkets)
 
-      // Check for duplicate lists
-      const existingLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-      const isDuplicate = existingLists.some((existingList: any) => {
-        return (
-          existingList.name === listName.trim() &&
-          existingList.items === selectedItems.length &&
-          JSON.stringify(existingList.listItems.map((item) => ({ id: item.id, quantity: item.quantity }))) ===
-            JSON.stringify(selectedItems.map((item) => ({ id: item.id, quantity: item.quantity })))
-        )
+      // Save to database using API
+      const updateListResponse = await fetch('/api/shopping_list', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: listName.trim(),
+          userId: user.id,
+        }),
       })
 
-      if (isDuplicate) {
-        const overwrite = confirm(
-          `Já existe uma lista com o nome "${listName}" e os mesmos itens. Deseja sobrescrever?`,
-        )
-        if (!overwrite) {
-          setIsSaving(false)
-          return
+      if (!updateListResponse.ok) {
+        throw new Error('Erro ao salvar lista no servidor')
+      }
+
+      const savedList = await updateListResponse.json()
+
+      // Add items to the saved list
+      for (const item of selectedItems) {
+        const itemResponse = await fetch('/api/shopping_list_item', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            shoppingListId: savedList.id,
+            productId: item.id,
+            quantity: item.quantity,
+          }),
+        })
+
+        if (!itemResponse.ok) {
+          console.error('Erro ao adicionar item à lista:', item.name)
         }
-        // Remove the duplicate
-        const filteredLists = existingLists.filter(
-          (existingList: any) =>
-            !(existingList.name === listName.trim() && existingList.items === selectedItems.length),
-        )
-        localStorage.setItem("savedLists", JSON.stringify(filteredLists))
       }
 
-      // Create the saved list object
-      const savedList = {
-        id: Date.now(),
-        name: listName.trim(),
-        items: selectedItems.length,
-        completed: getCollectedCount(),
-        date: new Date().toISOString().split("T")[0],
-        estimatedTotal: getTotalEstimated(),
-        actualTotal: getTotalActual(),
-        listItems: selectedItems,
-        priceEstimates: estimates,
-        recommendedMarkets: sortedMarkets,
-        status: getCollectedCount() === selectedItems.length ? "completed" : "active",
-        createdAt: new Date().toISOString(),
-      }
-
-      // Save to localStorage
-      const updatedLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-      updatedLists.push(savedList)
-      localStorage.setItem("savedLists", JSON.stringify(updatedLists))
-
-      // Add to history
-      const historyEntry = {
-        id: Date.now() + 1,
-        listName: listName.trim(),
-        action: "created",
-        date: new Date().toISOString().split("T")[0],
-        timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-        details: `Lista criada com ${selectedItems.length} itens`,
-        itemCount: selectedItems.length,
-        totalEstimated: getTotalEstimated(),
-      }
-
-      const existingHistory = JSON.parse(localStorage.getItem("listHistory") || "[]")
-      existingHistory.unshift(historyEntry)
-      localStorage.setItem("listHistory", JSON.stringify(existingHistory))
-
+      // Show success message
+      alert(`Lista "${listName}" salva com sucesso!`)
+      
       // Show recommendation dialog
       setShowRecommendationDialog(true)
+      
+      // Reset form
+      setListName("")
+      setSelectedItems([])
+      
     } catch (error) {
       console.error("Error saving list:", error)
       alert("Erro ao salvar a lista. Tente novamente.")
@@ -592,7 +695,40 @@ export default function NovaListaPage() {
                     />
                   </div>
 
-                  {selectedItems.length > 0 && <div className="flex gap-2"></div>}
+                  <div className="flex gap-2 mt-4 items-center">
+                    <div className="flex-1">
+                      <p className="text-sm text-gray-600 mb-1">Localização</p>
+                      {isLoadingLocation ? (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span>Obtendo localização...</span>
+                        </div>
+                      ) : userLocationHook ? (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-green-600" />
+                          <span className="text-sm text-green-600">
+                            {nearbyMarkets.length} mercados próximos
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-red-600">
+                            {locationError ? 
+                              "Acesso à localização negado. Permita o acesso à localização para ver mercados próximos." :
+                              "Não foi possível obter sua localização. Verifique se seu dispositivo tem suporte a GPS."}
+                          </span>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={updateUserLocation}
+                          >
+                            <MapPin className="h-4 w-4 mr-2" />
+                            Tentar novamente
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -669,7 +805,7 @@ export default function NovaListaPage() {
                           {Object.entries(priceEstimates)
                             .reduce((sum, [itemId, est]) => {
                               const item = selectedItems.find((i) => i.id === Number.parseInt(itemId))
-                              return sum + est.estimated * (item?.quantity || 1)
+                              return sum + (est as any).estimated * (item?.quantity || 1)
                             }, 0)
                             .toFixed(2)}
                         </span>
@@ -680,7 +816,7 @@ export default function NovaListaPage() {
                           getTotalEstimated() -
                           Object.entries(priceEstimates).reduce((sum, [itemId, est]) => {
                             const item = selectedItems.find((i) => i.id === Number.parseInt(itemId))
-                            return sum + est.estimated * (item?.quantity || 1)
+                            return sum + (est as any).estimated * (item?.quantity || 1)
                           }, 0)
                         ).toFixed(2)}
                       </p>
@@ -738,12 +874,12 @@ export default function NovaListaPage() {
                           </div>
                           <div className="text-right ml-4">
                             <p className="font-bold text-green-600">
-                              R$ {product.bestPrice || (product.avgPrice * 0.9).toFixed(2)}
+                              R$ {(product.bestPrice !== undefined ? product.bestPrice : product.avgPrice * 0.9).toFixed(2)}
                             </p>
-                            <p className="text-xs text-gray-500 line-through">R$ {product.avgPrice}</p>
+                            <p className="text-xs text-gray-500 line-through">R$ {product.avgPrice.toFixed(2)}</p>
                             <p className="text-xs text-green-600">
                               Economia: R${" "}
-                              {(product.avgPrice - (product.bestPrice || product.avgPrice * 0.9)).toFixed(2)}
+                              {(product.avgPrice - (product.bestPrice !== undefined ? product.bestPrice : product.avgPrice * 0.9)).toFixed(2)}
                             </p>
                             <Button size="sm" className="mt-1" onClick={() => addItem(product)}>
                               <Plus className="h-3 w-3" />
@@ -754,20 +890,26 @@ export default function NovaListaPage() {
                         {/* Avaliações Compactas */}
                         {showReviews === product.id && (
                           <div className="ml-4 p-3 bg-gray-50 rounded-lg border-l-4 border-blue-200">
-                            <ProductReviews productId={product.id} compact={true} />
+                            <ProductReviews productId={product.id} productName={product.name} compact={true} />
                           </div>
                         )}
                       </div>
                     ))}
-                  </div>
 
-                  {filteredProducts.length === 0 && (
-                    <div className="text-center py-8 text-gray-500">
-                      <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                      <p>Nenhum produto encontrado</p>
-                      <p className="text-sm">Tente buscar com outros termos</p>
-                    </div>
-                  )}
+                    {!productsLoading && filteredProducts.length === 0 && (
+                      <div className="text-center py-8 text-gray-500">
+                        <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>
+                          {searchTerm
+                            ? `Nenhum produto encontrado para "${searchTerm}"`
+                            : "Nenhum produto disponível no momento"}
+                        </p>
+                        <p className="text-sm">
+                          {searchTerm ? "Tente buscar com outros termos" : "Verifique sua conexão ou tente novamente"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -893,7 +1035,7 @@ export default function NovaListaPage() {
                               {Object.entries(priceEstimates)
                                 .reduce((sum, [itemId, est]) => {
                                   const item = selectedItems.find((i) => i.id === Number.parseInt(itemId))
-                                  return sum + est.estimated * (item?.quantity || 1)
+                                  return sum + (est as any).estimated * (item?.quantity || 1)
                                 }, 0)
                                 .toFixed(2)}
                             </span>
@@ -947,6 +1089,7 @@ export default function NovaListaPage() {
         onOpenChange={setCollectDialogOpen}
         item={selectedItemForCollection}
         onItemCollected={handleItemCollected}
+        shoppingListId={-1} // Use -1 to indicate this is a new list
       />
 
       {/* Market Recommendation Dialog */}
@@ -963,7 +1106,7 @@ export default function NovaListaPage() {
         recommendedMarkets={recommendedMarkets}
         totalEstimated={Object.entries(priceEstimates).reduce((sum, [itemId, est]) => {
           const item = selectedItems.find((i) => i.id === Number.parseInt(itemId))
-          return sum + est.estimated * (item?.quantity || 1)
+          return sum + (est as any).estimated * (item?.quantity || 1)
         }, 0)}
         onNavigate={handleNavigateToMarket}
       />

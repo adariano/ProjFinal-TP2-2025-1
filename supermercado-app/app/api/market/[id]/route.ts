@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const id = Number(params.id)
@@ -19,10 +20,6 @@ export async function GET(request: Request, { params }: { params: { id: string }
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 })
   }
 }
-// app/api/market/[id]/route.ts
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const id = Number(params.id)

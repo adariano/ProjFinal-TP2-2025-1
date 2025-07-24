@@ -20,8 +20,15 @@ model User {
   cpf            String          @unique
   password       String
   role           Role            @default(USER)
+  points         Int             @default(0)
   createdAt      DateTime        @default(now())
-  shoppingLists  ShoppingList[]
+  photoUrl       String?         // URL da foto de perfil
+  status         String          @default("Ativo")
+  shoppingLists  ShoppingList[]  @relation("UserShoppingLists")
+  collectedItems ShoppingListItem[] @relation("UserCollectedItems")
+  reviewedLists  ShoppingList[]    @relation("UserReviewedLists")
+  priceReports   PriceReport[]     @relation("UserPriceReports")
+  reviews        Review[]          @relation("UserReviews")
 }
 
 model Product {
@@ -31,25 +38,57 @@ model Product {
   brand       String
   avgPrice    Float
   lastUpdate  DateTime  @default(now())
+  status      String    @default("Ativo")
   items       ShoppingListItem[]
+  priceReports PriceReport[]
 }
 
 model Market {
-  id        Int     @id @default(autoincrement())
-  name      String
-  address   String
-  distance  Float
-  rating    Float
+  id            Int      @id @default(autoincrement())
+  name          String
+  address       String
+  distance      Float    @default(0)
+  rating        Float    @default(0)
+  phone         String?
+  hours         String?
+  googleMapsUrl String?
+  priceLevel    String?
+  categories    String?
+  description   String?
+  latitude      Float?
+  longitude     Float?
+  // Google Maps cached data
+  placeId       String?  // Google Place ID for updates
+  photoUrl      String?  // Main photo URL
+  website       String?  // Website URL
+  businessStatus String? // OPERATIONAL, CLOSED_TEMPORARILY, etc.
+  types         String?  // JSON array of place types
+  vicinity      String?  // Simplified address
+  // Cache control
+  lastMapUpdate DateTime? // Last time Google Maps data was updated
+  mapUpdateFreq Int      @default(86400) // Update frequency in seconds (default: 24h)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+  priceReports  PriceReport[]
+  reviews       Review[]
 }
 
 model ShoppingList {
-  id         Int                  @id @default(autoincrement())
-  name       String
-  status     String               @default("active")
-  createdAt  DateTime             @default(now())
-  userId     Int
-  user       User                 @relation(fields: [userId], references: [id])
-  items      ShoppingListItem[]
+  id              Int                  @id @default(autoincrement())
+  name            String
+  status          String               @default("active")
+  createdAt       DateTime             @default(now())
+  userId          Int
+  estimatedTotal  Float?
+  actualTotal     Float?
+  reviewed        Boolean              @default(false)
+  reviewedBy      Int?
+  reviewedAt      DateTime?
+
+  user            User                 @relation("UserShoppingLists", fields: [userId], references: [id])
+  reviewer        User?                @relation("UserReviewedLists", fields: [reviewedBy], references: [id])
+  items           ShoppingListItem[]
 }
 
 model ShoppingListItem {
@@ -58,9 +97,58 @@ model ShoppingListItem {
   collected     Boolean       @default(false)
   productId     Int
   shoppingListId Int
+  collectedBy   Int?
+  collectedAt   DateTime?
 
   product       Product       @relation(fields: [productId], references: [id])
-  shoppingList  ShoppingList @relation(fields: [shoppingListId], references: [id])
+  shoppingList  ShoppingList  @relation(fields: [shoppingListId], references: [id])
+  collector     User?         @relation("UserCollectedItems", fields: [collectedBy], references: [id])
+}
+
+model PriceReport {
+  id          Int      @id @default(autoincrement())
+  price       Float
+  productId   Int
+  marketId    Int
+  userId      Int
+  createdAt   DateTime @default(now())
+  user        User     @relation("UserPriceReports", fields: [userId], references: [id])
+  market      Market   @relation(fields: [marketId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@index([userId])
+  @@index([marketId])
+  @@index([productId])
+}
+
+model Review {
+  id          Int      @id @default(autoincrement())
+  rating      Float
+  comment     String?
+  marketId    Int
+  userId      Int
+  createdAt   DateTime @default(now())
+  user        User     @relation("UserReviews", fields: [userId], references: [id])
+  market      Market   @relation(fields: [marketId], references: [id])
+
+  @@index([userId])
+  @@index([marketId])
+}
+
+
+model ProductSuggestion {
+  id             Int      @id @default(autoincrement())
+  name           String
+  brand          String
+  category       String
+  description    String
+  estimatedPrice Float?
+  barcode        String?
+  reason         String?
+  submittedBy    String
+  submittedEmail String
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
 }
 
 enum Role {

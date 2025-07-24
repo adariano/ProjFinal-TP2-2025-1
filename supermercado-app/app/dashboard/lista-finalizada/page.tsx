@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft, MapPin, Navigation, DollarSign, Clock, Star, Route } from "lucide-react"
 import Link from "next/link"
+import { useLocation } from "@/hooks/use-location"
+import { sortMarketsByDistance } from "@/lib/location-utils"
 
 // Mock data para mercados
 const mockMarkets = [
@@ -87,12 +89,20 @@ export default function ListaFinalizadaPage() {
   const [user, setUser] = useState<any>(null)
   const [markets, setMarkets] = useState(mockMarkets)
   const [sortBy, setSortBy] = useState("price")
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [manualAddress, setManualAddress] = useState("")
   const [useGPS, setUseGPS] = useState(true)
-  const [gpsLoading, setGpsLoading] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
+
+  // Use the location hook
+  const { 
+    userLocation, 
+    isLoadingLocation, 
+    locationError, 
+    getCurrentLocation, 
+    nearbyMarkets, 
+    isLoadingMarkets 
+  } = useLocation()
 
   useEffect(() => {
     const userData = localStorage.getItem("user")
@@ -104,54 +114,32 @@ export default function ListaFinalizadaPage() {
   }, [router])
 
   useEffect(() => {
-    if (useGPS) {
+    if (useGPS && !userLocation) {
       getCurrentLocation()
     }
-  }, [useGPS])
+  }, [useGPS, userLocation, getCurrentLocation])
 
   useEffect(() => {
     sortMarkets()
   }, [sortBy, userLocation])
 
-  const getCurrentLocation = () => {
-    setGpsLoading(true)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          })
-          setGpsLoading(false)
-        },
-        (error) => {
-          console.error("Erro ao obter localização:", error)
-          setGpsLoading(false)
-          alert("Não foi possível obter sua localização. Use o endereço manual.")
-          setUseGPS(false)
-        },
-      )
-    } else {
-      alert("Geolocalização não é suportada neste navegador")
-      setUseGPS(false)
-      setGpsLoading(false)
+  // Update markets when nearbyMarkets changes
+  useEffect(() => {
+    if (nearbyMarkets.length > 0) {
+      // Add mock pricing data to nearby markets
+      const marketsWithPricing = nearbyMarkets.map(market => ({
+        ...market,
+        totalPrice: 85 + Math.random() * 30, // Random price between 85-115
+        estimatedTime: Math.ceil(market.distance * 5), // Estimate 5 min per km
+      }))
+      setMarkets(marketsWithPricing)
     }
-  }
+  }, [nearbyMarkets])
 
   const calculateDistance = (market: any) => {
     if (!userLocation) return market.distance
-    // Fórmula simplificada de distância (em produção, usar API de mapas)
-    const R = 6371 // Raio da Terra em km
-    const dLat = ((market.coordinates.lat - userLocation.lat) * Math.PI) / 180
-    const dLng = ((market.coordinates.lng - userLocation.lng) * Math.PI) / 180
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((userLocation.lat * Math.PI) / 180) *
-        Math.cos((market.coordinates.lat * Math.PI) / 180) *
-        Math.sin(dLng / 2) *
-        Math.sin(dLng / 2)
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-    return R * c
+    // Use the utility function for consistent distance calculation
+    return market.distance // Distance already calculated by the hook
   }
 
   const sortMarkets = () => {
@@ -177,14 +165,41 @@ export default function ListaFinalizadaPage() {
     setMarkets(sorted)
   }
 
-  const handleManualLocation = () => {
+  const handleManualLocation = async () => {
     if (!manualAddress.trim()) {
       alert("Digite um endereço válido")
       return
     }
-    // Simular geocodificação
-    setUserLocation({ lat: -23.5505, lng: -46.6333 })
-    alert(`Localização definida para: ${manualAddress}`)
+    
+    try {
+      // Use geocoding to convert address to coordinates
+      const { geocodeAddress } = await import("@/lib/location-utils")
+      const coords = await geocodeAddress(manualAddress)
+      
+      if (coords) {
+        // Get markets sorted by distance from manual address
+        const response = await fetch('/api/market')
+        if (response.ok) {
+          const apiMarkets = await response.json()
+          const { sortMarketsByDistance } = await import("@/lib/location-utils")
+          const sortedMarkets = sortMarketsByDistance(apiMarkets, coords.lat, coords.lng)
+          
+          // Add mock pricing data
+          const marketsWithPricing = sortedMarkets.slice(0, 10).map(market => ({
+            ...market,
+            totalPrice: 85 + Math.random() * 30,
+            estimatedTime: Math.ceil(market.distance * 5),
+          }))
+          
+          setMarkets(marketsWithPricing)
+        }
+      } else {
+        alert("Endereço não encontrado")
+      }
+    } catch (error) {
+      console.error("Error geocoding address:", error)
+      alert("Erro ao buscar endereço")
+    }
   }
 
   const openInMaps = (market: any) => {
@@ -259,14 +274,14 @@ export default function ListaFinalizadaPage() {
                   </div>
                   {useGPS && (
                     <Button
-                      onClick={getCurrentLocation}
-                      disabled={gpsLoading}
+                      onClick={() => getCurrentLocation(true)}
+                      disabled={isLoadingLocation}
                       variant="outline"
                       size="sm"
                       className="w-full"
                     >
                       <Navigation className="h-4 w-4 mr-2" />
-                      {gpsLoading ? "Obtendo..." : "Obter Localização"}
+                      {isLoadingLocation ? "Obtendo..." : "Obter Localização"}
                     </Button>
                   )}
                 </div>
@@ -299,7 +314,14 @@ export default function ListaFinalizadaPage() {
                 {userLocation && (
                   <div className="p-3 bg-green-50 rounded-lg">
                     <p className="text-sm text-green-800">✓ Localização definida</p>
-                    <p className="text-xs text-green-600">{useGPS ? "GPS ativo" : `Endereço: ${manualAddress}`}</p>
+                    <p className="text-xs text-green-600">
+                      {useGPS ? `GPS: ${userLocation.lat.toFixed(4)}, ${userLocation.lng.toFixed(4)}` : `Endereço: ${manualAddress}`}
+                    </p>
+                  </div>
+                )}
+                {locationError && (
+                  <div className="p-3 bg-red-50 rounded-lg">
+                    <p className="text-sm text-red-800">{locationError}</p>
                   </div>
                 )}
               </CardContent>

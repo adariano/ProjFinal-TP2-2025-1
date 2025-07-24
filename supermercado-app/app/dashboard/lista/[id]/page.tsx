@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import { MarketRecommendationDialog } from "@/components/market-recommendation-dialog"
+import { useLocation } from "@/hooks/use-location"
 
 export default function ListaDetalhePage() {
   const [user, setUser] = useState<any>(null)
@@ -30,48 +31,68 @@ export default function ListaDetalhePage() {
   const params = useParams()
   const listId = params.id
 
+  // Get user location for navigation
+  const { userLocation } = useLocation()
+
   useEffect(() => {
     const userData = localStorage.getItem("user")
     if (!userData) {
       router.push("/login")
       return
     }
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
 
-    // Carregar lista específica
-    const savedLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-    const foundList = savedLists.find((list: any) => list.id.toString() === listId)
-
-    if (foundList) {
-      setLista(foundList)
-    } else {
-      // Lista não encontrada, redirecionar
-      router.push("/dashboard")
+    // Load list from API
+    const fetchList = async () => {
+      try {
+        const response = await fetch(`/api/shopping_list?id=${listId}`)
+        if (!response.ok) {
+          throw new Error('Failed to fetch list')
+        }
+        const list = await response.json()
+        setLista({
+          ...list,
+          listItems: list.items || [],
+          items: list.items?.length || 0,
+          completed: list.items?.filter((item: any) => item.collected).length || 0,
+          date: list.createdAt,
+          actualTotal: list.items?.reduce((sum: number, item: any) => {
+            return sum + (item.collected && item.actualPrice ? item.actualPrice * item.quantity : 0)
+          }, 0) || 0,
+          estimatedTotal: list.items?.reduce((sum: number, item: any) => {
+            return sum + ((item.product?.avgPrice || 0) * item.quantity)
+          }, 0) || 0
+        })
+      } catch (error) {
+        console.error("Error loading list:", error)
+        router.push("/dashboard")
+      } finally {
+        setLoading(false)
+      }
     }
-    setLoading(false)
+
+    fetchList()
   }, [listId, router])
 
-  const handleDeleteList = () => {
+  const handleDeleteList = async () => {
     if (!confirm("Tem certeza que deseja excluir esta lista?")) return
 
-    const savedLists = JSON.parse(localStorage.getItem("savedLists") || "[]")
-    const updatedLists = savedLists.filter((list: any) => list.id.toString() !== listId)
-    localStorage.setItem("savedLists", JSON.stringify(updatedLists))
+    try {
+      const response = await fetch(`/api/shopping_list?id=${listId}`, {
+        method: 'DELETE'
+      })
 
-    // Adicionar ao histórico
-    const historyEntry = {
-      id: Date.now(),
-      listName: lista.name,
-      action: "deleted",
-      date: new Date().toISOString().split("T")[0],
-      timestamp: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      details: `Lista "${lista.name}" foi excluída`,
-      itemCount: lista.items,
+      if (!response.ok) {
+        throw new Error('Failed to delete list')
+      }
+
+      // Redirect after successful deletion
+      router.push("/dashboard")
+    } catch (error) {
+      console.error("Error deleting list:", error)
+      alert("Erro ao excluir a lista. Tente novamente.")
     }
-
-    const existingHistory = JSON.parse(localStorage.getItem("listHistory") || "[]")
-    existingHistory.unshift(historyEntry)
-    localStorage.setItem("listHistory", JSON.stringify(existingHistory))
 
     alert("Lista excluída com sucesso!")
     router.push("/dashboard")
@@ -85,18 +106,18 @@ export default function ListaDetalhePage() {
       data: new Date(lista.date).toLocaleDateString("pt-BR"),
       itens:
         lista.listItems?.map((item: any) => ({
-          produto: item.name,
+          produto: item.product?.name || 'Produto',
           quantidade: item.quantity,
-          precoEstimado: `R$ ${item.avgPrice.toFixed(2)}`,
-          precoReal: item.actualPrice ? `R$ ${item.actualPrice.toFixed(2)}` : "Não coletado",
+          precoEstimado: `R$ ${((item.product?.avgPrice || 0) * item.quantity).toFixed(2)}`,
+          precoReal: item.actualPrice ? `R$ ${(item.actualPrice * item.quantity).toFixed(2)}` : "Não coletado",
           coletado: item.collected ? "Sim" : "Não",
         })) || [],
       resumo: {
         totalItens: lista.items,
         itensColetados: lista.completed,
-        valorEstimado: `R$ ${lista.estimatedTotal.toFixed(2)}`,
-        valorReal: `R$ ${lista.actualTotal.toFixed(2)}`,
-        economia: `R$ ${(lista.estimatedTotal - lista.actualTotal).toFixed(2)}`,
+        valorEstimado: `R$ ${(lista.estimatedTotal || 0).toFixed(2)}`,
+        valorReal: `R$ ${(lista.actualTotal || 0).toFixed(2)}`,
+        economia: `R$ ${((lista.estimatedTotal || 0) - (lista.actualTotal || 0)).toFixed(2)}`,
       },
     }
 
@@ -110,9 +131,18 @@ export default function ListaDetalhePage() {
     URL.revokeObjectURL(url)
   }
 
-  const handleNavigateToMarket = (market: any) => {
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(market.address)}`
-    window.open(url, "_blank")
+    const handleNavigateToMarket = (market: any) => {
+    // Use user location for navigation if available
+    if (userLocation) {
+      const origin = `${userLocation.lat},${userLocation.lng}`
+      const destination = `${market.lat},${market.lng}`
+      const url = `https://www.google.com/maps/dir/${origin}/${destination}`
+      window.open(url, '_blank')
+    } else {
+      // Fallback to market location only
+      const url = `https://www.google.com/maps/search/?api=1&query=${market.lat},${market.lng}`
+      window.open(url, '_blank')
+    }
   }
 
   const handleShowRecommendations = () => {
@@ -172,6 +202,67 @@ export default function ListaDetalhePage() {
     }
   }
 
+  const handleItemCollected = async (itemId: number, actualPrice: number) => {
+    try {
+      // Update item first
+      const itemResponse = await fetch('/api/shopping_list_item', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: itemId,
+          action: 'collect'
+        }),
+      })
+
+      if (!itemResponse.ok) {
+        throw new Error('Failed to update item')
+      }
+
+      // Reload the list to get updated counts
+      const listResponse = await fetch(`/api/shopping_list?id=${listId}`)
+      if (!listResponse.ok) {
+        throw new Error('Failed to fetch updated list')
+      }
+
+      const updatedList = await listResponse.json()
+      const allCollected = updatedList.items?.every((item: any) => item.collected)
+
+      if (allCollected) {
+        // Update list status to completed
+        await fetch(`/api/shopping_list`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: listId,
+            status: 'completed'
+          }),
+        })
+      }
+
+      // Update local state
+      setLista({
+        ...updatedList,
+        listItems: updatedList.items || [],
+        items: updatedList.items?.length || 0,
+        completed: updatedList.items?.filter((item: any) => item.collected).length || 0,
+        date: updatedList.createdAt,
+        actualTotal: updatedList.items?.reduce((sum: number, item: any) => {
+          return sum + (item.collected && item.actualPrice ? item.actualPrice * item.quantity : 0)
+        }, 0) || 0,
+        estimatedTotal: updatedList.items?.reduce((sum: number, item: any) => {
+          return sum + ((item.product?.avgPrice || 0) * item.quantity)
+        }, 0) || 0
+      })
+    } catch (error) {
+      console.error("Error updating item and list:", error)
+      alert("Erro ao atualizar item. Tente novamente.")
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -198,22 +289,22 @@ export default function ListaDetalhePage() {
       {/* Header */}
       <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
               <Link href="/dashboard">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Voltar
                 </Button>
               </Link>
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-6 w-6 text-green-600" />
-                <h1 className="text-xl font-bold">{lista.name}</h1>
-                {lista.status === "completed" && <Badge className="bg-green-100 text-green-800">Concluída</Badge>}
-                {lista.status === "active" && <Badge className="bg-blue-100 text-blue-800">Ativa</Badge>}
+              <div className="flex items-center gap-2 min-w-0">
+                <ShoppingCart className="h-6 w-6 text-green-600 flex-shrink-0" />
+                <h1 className="text-xl font-bold truncate">{lista.name}</h1>
+                {lista.status === "completed" && <Badge className="bg-green-100 text-green-800 flex-shrink-0">Concluída</Badge>}
+                {lista.status === "active" && <Badge className="bg-blue-100 text-blue-800 flex-shrink-0">Ativa</Badge>}
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
               {(lista.recommendedMarkets && lista.recommendedMarkets.length > 0) || lista.listItems?.length > 0 ? (
                 <Button variant="outline" size="sm" onClick={handleShowRecommendations}>
                   <Navigation className="h-4 w-4 mr-2" />
@@ -233,8 +324,8 @@ export default function ListaDetalhePage() {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="container mx-auto px-4 py-6 md:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           {/* Informações da Lista */}
           <div className="lg:col-span-2 space-y-6">
             {/* Resumo */}
@@ -256,11 +347,11 @@ export default function ListaDetalhePage() {
                     <p className="text-sm text-gray-600">Coletados</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-600">R$ {lista.estimatedTotal.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-purple-600">R$ {(lista.estimatedTotal || 0).toFixed(2)}</p>
                     <p className="text-sm text-gray-600">Estimado</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-orange-600">R$ {lista.actualTotal.toFixed(2)}</p>
+                    <p className="text-2xl font-bold text-orange-600">R$ {(lista.actualTotal || 0).toFixed(2)}</p>
                     <p className="text-sm text-gray-600">Gasto Real</p>
                   </div>
                 </div>
@@ -268,7 +359,7 @@ export default function ListaDetalhePage() {
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-green-800">Economia Total:</span>
                     <span className="text-xl font-bold text-green-600">
-                      R$ {(lista.estimatedTotal - lista.actualTotal).toFixed(2)}
+                      R$ {((lista.estimatedTotal || 0) - (lista.actualTotal || 0)).toFixed(2)}
                     </span>
                   </div>
                   <div className="mt-2">
@@ -313,16 +404,16 @@ export default function ListaDetalhePage() {
                             <div className="h-5 w-5 rounded-full border-2 border-gray-300"></div>
                           )}
                           <div>
-                            <h3 className="font-medium">{item.name}</h3>
+                            <h3 className="font-medium">{item.product?.name || 'Produto'}</h3>
                             <p className="text-sm text-gray-600">
-                              Quantidade: {item.quantity} • Categoria: {item.category}
+                              Quantidade: {item.quantity} • Categoria: {item.product?.category || 'N/A'}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="space-y-1">
                             <p className="text-sm text-gray-600">
-                              Estimado: R$ {(item.avgPrice * item.quantity).toFixed(2)}
+                              Estimado: R$ {((item.product?.avgPrice || 0) * item.quantity).toFixed(2)}
                             </p>
                             {item.collected && item.actualPrice && (
                               <p className="font-medium text-green-600">
@@ -331,7 +422,7 @@ export default function ListaDetalhePage() {
                             )}
                             {item.collected && item.actualPrice && (
                               <p className="text-xs text-green-600">
-                                Economia: R$ {((item.avgPrice - item.actualPrice) * item.quantity).toFixed(2)}
+                                Economia: R$ {(((item.product?.avgPrice || 0) - item.actualPrice) * item.quantity).toFixed(2)}
                               </p>
                             )}
                           </div>
@@ -401,15 +492,17 @@ export default function ListaDetalhePage() {
                     <span className="text-sm text-gray-600">Economia por Item:</span>
                     <span className="text-sm font-medium">
                       R${" "}
-                      {lista.items > 0 ? ((lista.estimatedTotal - lista.actualTotal) / lista.items).toFixed(2) : "0.00"}
+                      {lista.items > 0 && lista.estimatedTotal > 0 && lista.actualTotal >= 0
+                        ? ((lista.estimatedTotal - lista.actualTotal) / lista.items).toFixed(2)
+                        : "0.00"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">% de Economia:</span>
                     <span className="text-sm font-medium text-green-600">
-                      {lista.estimatedTotal > 0
+                      {lista.estimatedTotal > 0 && lista.actualTotal >= 0
                         ? (((lista.estimatedTotal - lista.actualTotal) / lista.estimatedTotal) * 100).toFixed(1)
-                        : 0}
+                        : "0.0"}
                       %
                     </span>
                   </div>
@@ -422,8 +515,8 @@ export default function ListaDetalhePage() {
               <CardHeader>
                 <CardTitle className="text-lg">Ações</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <Button variant="outline" className="w-full justify-start" onClick={handleShowRecommendations}>
+              <CardContent className="p-6">
+                <Button variant="outline" className="w-full justify-start h-auto py-3 mb-3" onClick={handleShowRecommendations}>
                   <Navigation className="h-4 w-4 mr-2" />
                   {lista.recommendedMarkets && lista.recommendedMarkets.length > 0
                     ? "Ver Recomendações de Mercados"
@@ -431,18 +524,18 @@ export default function ListaDetalhePage() {
                 </Button>
                 {lista.status === "completed" && (
                   <Link href="/dashboard/lista-finalizada">
-                    <Button variant="outline" className="w-full justify-start">
+                    <Button variant="outline" className="w-full justify-start h-auto py-3 mb-3">
                       <MapPin className="h-4 w-4 mr-2" />
                       Ver Mercados Recomendados
                     </Button>
                   </Link>
                 )}
-                <Button variant="outline" className="w-full justify-start" onClick={handleExportList}>
+                <Button variant="outline" className="w-full justify-start h-auto py-3 mb-3" onClick={handleExportList}>
                   <Download className="h-4 w-4 mr-2" />
                   Exportar Lista
                 </Button>
                 <Link href="/dashboard/nova-lista">
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button variant="outline" className="w-full justify-start h-auto py-3">
                     <Edit className="h-4 w-4 mr-2" />
                     Criar Lista Similar
                   </Button>

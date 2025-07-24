@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { MapPin, Star, Phone, Navigation, TrendingUp, ShoppingCart, CheckCircle, Copy, Share2 } from "lucide-react"
+import { useLocation } from "@/hooks/use-location"
 
 interface MarketRecommendationDialogProps {
   open: boolean
@@ -26,6 +27,7 @@ export function MarketRecommendationDialog({
   onNavigate,
 }: MarketRecommendationDialogProps) {
   const [selectedMarket, setSelectedMarket] = useState<any>(null)
+  const { userLocation } = useLocation()
 
   if (!recommendedMarkets || recommendedMarkets.length === 0) {
     return null
@@ -33,6 +35,18 @@ export function MarketRecommendationDialog({
 
   const bestMarket = recommendedMarkets[0]
   const savings = totalEstimated - bestMarket.estimatedTotal
+
+  const openRouteInOSM = (market: any) => {
+    if (userLocation && market.latitude && market.longitude) {
+      // Open the route in OpenStreetMap (the source of our distance calculation)
+      const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${userLocation.lat}%2C${userLocation.lng}%3B${market.latitude}%2C${market.longitude}`
+      window.open(url, "_blank")
+    } else {
+      // Fallback: just show the market location
+      const url = `https://www.openstreetmap.org/?mlat=${market.latitude}&mlon=${market.longitude}&zoom=16`
+      window.open(url, "_blank")
+    }
+  }
 
   const handleCopyAddress = (address: string) => {
     navigator.clipboard.writeText(address)
@@ -120,7 +134,13 @@ export function MarketRecommendationDialog({
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-1">
                         <Navigation className="h-4 w-4 text-blue-600" />
-                        <span className="text-sm font-medium">{bestMarket.distance.toFixed(1)} km</span>
+                        <button
+                          onClick={() => openRouteInOSM(bestMarket)}
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                          title="Ver rota no OpenStreetMap"
+                        >
+                          {bestMarket.distance.toFixed(1)} km
+                        </button>
                       </div>
                       <div className="flex items-center gap-1">
                         <Star className="h-4 w-4 text-yellow-500" />
@@ -206,7 +226,13 @@ export function MarketRecommendationDialog({
                           <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1">
                               <Navigation className="h-3 w-3" />
-                              <span>{market.distance.toFixed(1)} km</span>
+                              <button
+                                onClick={() => openRouteInOSM(market)}
+                                className="text-xs text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                title="Ver rota no OpenStreetMap"
+                              >
+                                {market.distance.toFixed(1)} km
+                              </button>
                             </div>
                             <div className="flex items-center gap-1">
                               <Star className="h-3 w-3 text-yellow-500" />
@@ -276,7 +302,13 @@ export function MarketRecommendationDialog({
               </div>
               <div>
                 <p className="text-gray-600">Distância Mínima</p>
-                <p className="font-bold">{bestMarket.distance.toFixed(1)} km</p>
+                <button
+                  onClick={() => openRouteInOSM(bestMarket)}
+                  className="font-bold text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                  title="Ver rota no OpenStreetMap"
+                >
+                  {bestMarket.distance.toFixed(1)} km
+                </button>
               </div>
             </div>
           </div>

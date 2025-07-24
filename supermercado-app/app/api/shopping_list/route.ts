@@ -5,7 +5,7 @@ import { prisma } from "../../../lib/prisma";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, userId } = body;
+    const { name, userId, items, status } = body;
 
     if (!name || !userId) {
       return NextResponse.json(
@@ -18,9 +18,14 @@ export async function POST(req: NextRequest) {
       data: {
         name,
         userId,
+        status: status || 'active',
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true
+          }
+        },
         user: {
           select: {
             id: true,
@@ -52,7 +57,11 @@ export async function GET(req: NextRequest) {
       const shoppingList = await prisma.shoppingList.findUnique({
         where: { id: parseInt(id) },
         include: {
-          items: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
           user: {
             select: {
               id: true,
@@ -73,7 +82,11 @@ export async function GET(req: NextRequest) {
     const shoppingLists = await prisma.shoppingList.findMany({
       where,
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
         user: {
           select: {
             id: true,
@@ -84,7 +97,28 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(shoppingLists);
+    // Adiciona os totais calculados em cada lista
+    const listsWithTotals = shoppingLists.map(list => {
+      // Valor estimado: soma dos avgPrice dos produtos x quantidade
+      const estimatedTotal = list.items.reduce((sum, item) => {
+        const price = item.product?.avgPrice || 0;
+        return sum + price * item.quantity;
+      }, 0);
+      // Valor real: soma dos actualPrice dos itens coletados, se existir
+      const actualTotal = list.items.reduce((sum, item) => {
+        if (item.collected && item.actualPrice) {
+          return sum + item.actualPrice * item.quantity;
+        }
+        return sum;
+      }, 0);
+      return {
+        ...list,
+        estimatedTotal,
+        actualTotal: actualTotal > 0 ? actualTotal : undefined,
+      };
+    });
+
+    return NextResponse.json(listsWithTotals);
   } catch (error) {
     console.error("Falha ao buscar listas de compras:", error);
     return NextResponse.json(
@@ -114,7 +148,11 @@ export async function PATCH(req: NextRequest) {
         ...(status && { status }),
       },
       include: {
-        items: true,
+        items: {
+          include: {
+            product: true
+          }
+        },
         user: {
           select: {
             id: true,

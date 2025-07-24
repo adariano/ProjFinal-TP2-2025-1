@@ -30,6 +30,22 @@ export async function POST(req: Request) {
       );
     }
 
+        // Verifica se o usuário está ativo
+        if (user.status !== 'Ativo') {
+          return NextResponse.json(
+            { error: 'Usuário desativado. Entre em contato com o suporte.' },
+            { status: 403 }
+          );
+        }
+
+    // Verificar senha (comparação simples para teste)
+    if (user.password !== password) {
+      return NextResponse.json(
+        { error: 'Credenciais inválidas' },
+        { status: 401 }
+      );
+    }
+
     const { password: userPassword, ...userWithoutPassword } = user;
 
     return NextResponse.json(

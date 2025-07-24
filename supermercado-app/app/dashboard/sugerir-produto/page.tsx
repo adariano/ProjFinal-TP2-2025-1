@@ -60,26 +60,45 @@ export default function SugerirProdutoPage() {
 
     setIsSubmitting(true)
 
-    // Simular envio
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    setIsSubmitting(false)
-    setSubmitted(true)
-
-    // Reset form after success
-    setTimeout(() => {
-      setFormData({
-        name: "",
-        brand: "",
-        category: "",
-        description: "",
-        barcode: "",
-        estimatedPrice: "",
-        reason: "",
+    // Envia para a API
+    const payload = {
+      ...formData,
+      estimatedPrice: formData.estimatedPrice ? Number(formData.estimatedPrice) : undefined,
+      submittedBy: user?.name || "",
+      submittedEmail: user?.email || "",
+    }
+    try {
+      const res = await fetch("/api/productSuggestion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       })
-      setImageFile(null)
-      setSubmitted(false)
-    }, 3000)
+      if (!res.ok) {
+        const error = await res.json()
+        alert(error.error || "Erro ao enviar sugestão")
+        setIsSubmitting(false)
+        return
+      }
+      setIsSubmitting(false)
+      setSubmitted(true)
+      // Reset form after success
+      setTimeout(() => {
+        setFormData({
+          name: "",
+          brand: "",
+          category: "",
+          description: "",
+          barcode: "",
+          estimatedPrice: "",
+          reason: "",
+        })
+        setImageFile(null)
+        setSubmitted(false)
+      }, 3000)
+    } catch (err) {
+      alert("Erro ao enviar sugestão")
+      setIsSubmitting(false)
+    }
   }
 
   if (!user) {
